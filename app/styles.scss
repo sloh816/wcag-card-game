@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://use.typekit.net/lth1ftu.css");
+
+body {
+	@apply text-charcoal-200;
+	font-family: "rival-sans", sans-serif;
+}
+
+.heading-1 {
+	@apply text-4xl font-bold text-navy-100 text-center;
+}
+
+.heading-2 {
+	@apply text-2xl font-bold text-navy-100;
+}
+
+.heading-3 {
+	@apply text-xl font-bold text-navy-100;
+}
+
+.container {
+	@apply mx-auto max-w-5xl px-2;
+}
+
+.item-content {
+	p {
+		margin: 1rem 0;
+	}
+
+	a {
+		@apply text-navy-100 underline hover:no-underline font-bold;
+	}
+
+	h2 {
+		@apply text-2xl font-bold text-slate-900 mt-4 mb-2;
+	}
+
+	h3 {
+		@apply text-xl font-bold text-slate-900 mt-4 mb-2;
+	}
+
+	ul {
+		@apply list-disc ml-8 leading-relaxed;
+
+		> li > ul {
+			list-style-type: circle;
+		}
+	}
+
+	ol {
+		@apply list-decimal ml-8 leading-relaxed;
+	}
+
+	table {
+		@apply w-full border-collapse border border-charcoal-200;
+
+		th {
+			@apply bg-charcoal-200 text-white font-bold;
+		}
+
+		td,
+		th {
+			@apply border border-charcoal-200 p-2;
+		}
+	}
+}
+
+.error-message {
+	@apply text-grapefruit-100 font-bold text-sm;
+}
+
+[data-error="true"] {
+	@apply border-grapefruit-100 border-2;
+}
+
+[data-sidebar="true"] {
+	@apply gap-0;
+
+	a {
+		@apply bg-transparent shadow-none border-none font-normal p-2 hover:bg-grapefruit-40 hover:text-charcoal-200 text-sm;
+	}
+}
+
+.nav-list-item [aria-current="page"] {
+	@apply bg-navy-100 text-white;
+}
+
+.list-item {
+	@apply bg-white rounded-lg shadow-sm border border-navy-20;
+	@apply hover:border-grapefruit-100 transition-all;
+
+	&--cozy {
+		@apply py-4 px-6;
+	}
+
+	&--compact {
+		@apply py-2 px-4;
+	}
+
+	&--expanded {
+		@apply py-6 px-8;
+	}
+}
+
+.grapefruit-underline-hover {
+	@apply no-underline decoration-grapefruit-100 decoration-2 underline-offset-4;
+
+	&:hover {
+		@apply underline;
+	}
+}
+
+.button {
+	@apply inline-flex gap-2 items-center px-4 py-2 font-bold rounded-full border-2;
+	@apply transition-all;
+
+	&--grapefruit {
+		@apply bg-grapefruit-100 text-white border-grapefruit-100;
+		@apply hover:bg-transparent hover:text-navy-100;
+
+		&:hover svg {
+			@apply fill-navy-100;
+		}
+	}
+
+	&--plain {
+		@apply bg-transparent border-0 text-charcoal-200 p-0 no-underline underline-offset-4 decoration-2 decoration-grapefruit-100;
+		@apply hover:underline hover:text-navy-100;
+	}
+
+	&--cotton {
+		@apply bg-cotton-100 text-charcoal-200  border-cotton-100;
+		@apply hover:bg-transparent hover:text-charcoal-200;
+
+		svg {
+			@apply fill-charcoal-200;
+		}
+
+		&:hover svg {
+			@apply fill-charcoal-200;
+		}
+	}
+
+	&--small {
+		@apply text-sm no-underline underline-offset-4 hover:underline text-charcoal-100 font-normal p-0 border-0;
+	}
+}
+
+details[open] svg {
+	@apply rotate-180;
+}
