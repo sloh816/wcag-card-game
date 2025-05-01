@@ -1,4 +1,4 @@
-const ListItemLink = ({ href, onClick, children, listStyle = "cozy" }) => {
+const ListItemLink = ({ href, onClick, children, listStyle = "compact" }) => {
 	return href ? (
 		<a href={href} className={`list-item list-item--${listStyle}`}>
 			{children}
