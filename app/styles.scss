@@ -152,3 +152,14 @@ body {
 details[open] svg {
 	@apply rotate-180;
 }
+
+button {
+	&[aria-selected="true"] {
+		@apply bg-teal-20 font-bold;
+	}
+
+	&[aria-selected="false"] {
+		@apply grapefruit-underline-hover;
+		@apply hover:font-bold hover:text-navy-100;
+	}
+}

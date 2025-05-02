@@ -136,7 +136,10 @@ const getImageSrc = (imageId) => {
 	return `${directusUrl}/assets/${imageId}`;
 };
 
-const getDirectusLink = (collection, id = null) => {
+const getDirectusLink = (collection = null, id = null) => {
+	if (!collection) {
+		return `${directusUrl}/admin`;
+	}
 	const link = id ? `${collection}/${id}` : `${collection}`;
 	return `${directusUrl}/admin/content/${link}`;
 };
