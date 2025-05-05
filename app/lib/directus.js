@@ -34,6 +34,10 @@ const styleGuide = {
 			})
 		);
 
+		if (directory === "useful-information") {
+			return articles;
+		}
+
 		return articles
 			.filter((article) => article.title) // Remove articles without a title
 			.sort((a, b) => a.title.localeCompare(b.title));

@@ -12,6 +12,9 @@ const Header = ({ title, links, h1 }) => {
 				)}
 			</div>
 
+			<a href="/" className="mr-4 hover:underline underline-offset-4">
+				Tools & Databases
+			</a>
 			{links && (
 				<nav>
 					<ul className="flex gap-4">

@@ -30,6 +30,7 @@ const Page = ({}) => {
 
 	const updateQuery = async (newQueryValue, key) => {
 		if (key === "directory") {
+			setSelectedArticle(null);
 			router.push(`/style-guide?directory=${newQueryValue}`, undefined, { shallow: true });
 			setSelectedDirectory(newQueryValue);
 			await fetchArticles(newQueryValue);
