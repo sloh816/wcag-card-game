@@ -43,19 +43,6 @@ const styleGuide = {
 			.sort((a, b) => a.title.localeCompare(b.title));
 	},
 
-	getCategories: async () => {
-		const articles = await directus.request(readItems("er_style_guide_articles"));
-		const categories = articles.reduce((acc, article) => {
-			if (!acc.includes(article.category)) {
-				acc.push(article.category);
-			}
-			return acc;
-		}, []);
-
-		console.log(categories);
-		return categories;
-	},
-
 	getDirectories: async () => {
 		const directories = await directus.request(readItems("er_style_guide_directories"));
 		return directories;
@@ -73,66 +60,62 @@ const styleGuide = {
 		);
 
 		return dir[0] ? dir[0] : null;
-	},
-
-	addArticle: async (category) => {
-		const response = await directus.request(
-			createItem("er_style_guide_articles", {
-				category
-			})
-		);
-		return response;
-	},
-
-	getAccordions: async () => {
-		const accordions = await directus.request(
-			readItems("er_style_guide_pages", {
-				filter: {
-					title: {
-						_eq: "Front page"
-					}
-				}
-			})
-		);
-
-		return accordions[0].accordions;
 	}
 };
 
 const userTesting = {
-	getCategories: async () => {
-		const categories = await directus.request(readItems("user_testing_categories"));
-		return categories;
-	},
-
-	getCategory: async (category) => {
-		const categories = await directus.request(
-			readItems("user_testing_categories", {
+	getArticleBySlug: async (slug) => {
+		const articles = await directus.request(
+			readItems("user_testing_articles", {
 				filter: {
 					slug: {
-						_eq: category
+						_eq: slug
 					}
 				}
 			})
 		);
 
-		return categories[0] ? categories[0] : null;
+		return {
+			...articles[0],
+			directusLink: directusUrl + "/admin/content/user_testing_articles/" + articles[0].id
+		};
 	},
 
-	getTopics: async (category) => {
-		const topics = await directus.request(
-			readItems("user_testing_topics", {
+	getArticlesByDirectory: async (directory) => {
+		const articles = await directus.request(
+			readItems("user_testing_articles", {
 				filter: {
-					category: {
+					directory: {
 						slug: {
-							_eq: category
+							_eq: directory
 						}
 					}
 				}
 			})
 		);
 
-		return topics;
+		return articles
+			.filter((article) => article.title) // Remove articles without a title
+			.sort((a, b) => a.title.localeCompare(b.title));
+	},
+
+	getDirectories: async () => {
+		const directories = await directus.request(readItems("user_testing_directories"));
+		return directories;
+	},
+
+	getDirectory: async (directory) => {
+		const dir = await directus.request(
+			readItems("user_testing_directories", {
+				filter: {
+					slug: {
+						_eq: directory
+					}
+				}
+			})
+		);
+
+		return dir[0] ? dir[0] : null;
 	}
 };
 
