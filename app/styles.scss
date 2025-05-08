@@ -68,10 +68,6 @@ body {
 	}
 }
 
-.error-message {
-	@apply text-grapefruit-100 font-bold text-sm;
-}
-
 [data-error="true"] {
 	@apply border-grapefruit-100 border-2;
 }
@@ -114,11 +110,20 @@ body {
 }
 
 .button {
-	@apply inline-flex gap-2 items-center px-4 py-2 font-bold rounded-full border-2;
+	@apply inline-flex gap-2 items-center px-4 py-1 font-bold rounded-full border-2;
 	@apply transition-all;
 
 	&--grapefruit {
 		@apply bg-grapefruit-100 text-white border-grapefruit-100;
+		@apply hover:bg-transparent hover:text-navy-100;
+
+		&:hover svg {
+			@apply fill-navy-100;
+		}
+	}
+
+	&--navy {
+		@apply bg-navy-100 text-white border-navy-100;
 		@apply hover:bg-transparent hover:text-navy-100;
 
 		&:hover svg {

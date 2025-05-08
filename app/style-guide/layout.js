@@ -1,6 +1,10 @@
-"use client";
 import "@/styles.scss";
 import Header from "@/components/Header";
+
+export const metadata = {
+	title: "Easy Read style guide",
+	description: "A style guide for writing Easy Reads for the Information Access Group."
+};
 
 export default function RootLayout({ children }) {
 	return (

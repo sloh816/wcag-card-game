@@ -1,7 +1,10 @@
 {
     "scripts": {
         "dev": "next dev -p 4000",
-        "start": "npx next dev -H 0.0.0.0 -p 4000"
+        "start": "npx next dev -H 0.0.0.0 -p 4000",
+        "dev:server": "nodemon server",
+        "server": "node server",
+        "clear": "node server/utils/clearTempFiles.js"
     },
     "dependencies": {
         "@directus/sdk": "^18.0.1",
@@ -9,10 +12,17 @@
         "@emotion/styled": "^11.13.5",
         "@mui/icons-material": "^6.1.10",
         "@mui/material": "^6.1.10",
+        "axios": "^1.9.0",
+        "body-parser": "^2.2.0",
         "cheerio": "^1.0.0",
+        "cors": "^2.8.5",
+        "dotenv": "^16.5.0",
+        "express": "^5.1.0",
         "luxon": "^3.5.0",
         "mammoth": "^1.8.0",
+        "multer": "^1.4.5-lts.2",
         "next": "^15.0.4",
+        "nodemon": "^3.1.10",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
         "sass": "^1.82.0",

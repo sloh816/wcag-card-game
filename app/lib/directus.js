@@ -1,6 +1,10 @@
-import { createDirectus, rest, readItems, createItem } from "@directus/sdk";
+import { createDirectus, rest, readItems } from "@directus/sdk";
 
 const directusUrl = process.env.NEXT_PUBLIC_DIRECTUS_URL;
+if (!directusUrl) {
+	throw new Error("❌ DIRECTUS_URL is not defined");
+}
+
 const directus = createDirectus(directusUrl).with(rest());
 
 const styleGuide = {
