@@ -68,6 +68,18 @@ body {
 	}
 }
 
+.case-content img {
+	max-width: 600px;
+}
+
+ul.list {
+	@apply list-disc ml-8 leading-relaxed;
+
+	> li > ul {
+		list-style-type: circle;
+	}
+}
+
 [data-error="true"] {
 	@apply border-grapefruit-100 border-2;
 }

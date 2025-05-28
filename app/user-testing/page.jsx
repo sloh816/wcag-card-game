@@ -139,6 +139,96 @@ const Page = ({}) => {
 		);
 	};
 
+	const Cases = () => {
+		const Case = ({ caseItem }) => {
+			console.log(caseItem);
+			return (
+				<div className="bg-cotton-100 py-6 px-8 rounded-xl case-content my-4">
+					<h3 className="font-bold text-lg mb-4">{caseItem.title}</h3>
+					{caseItem.description && (
+						<div
+							dangerouslySetInnerHTML={{ __html: caseItem.description }}
+							className="item-content"
+						/>
+					)}
+					<p className="text-sm text-charcoal-100 mt-2">
+						{caseItem.date_raised || caseItem.raised_by ? "Raised" : ""}
+						{caseItem.date_raised && (
+							<span> on {new Date(caseItem.date_raised).toLocaleDateString()}</span>
+						)}
+						{caseItem.raised_by && <span> by {caseItem.raised_by}</span>}
+					</p>
+					<div className="flex gap-8 mt-2">
+						{caseItem.job_number && (
+							<p className="text-sm text-charcoal-100">
+								<strong>Job no:</strong> {caseItem.job_number}
+							</p>
+						)}
+						{caseItem.client && (
+							<p className="text-sm text-charcoal-100">
+								<strong>Client:</strong> {caseItem.client}
+							</p>
+						)}
+						{caseItem.target_audience && (
+							<p className="text-sm text-charcoal-100">
+								<strong>Target audience:</strong> {caseItem.target_audience}
+							</p>
+						)}
+					</div>
+					{caseItem.feedback_received && (
+						<div className="flex my-6">
+							<strong className="w-32 block shrink-0">Feedback: </strong>
+							<div
+								dangerouslySetInnerHTML={{ __html: caseItem.feedback_received }}
+								className="item-content"
+							/>
+						</div>
+					)}
+					{caseItem.outcome && (
+						<div className="flex my-6">
+							<strong className="w-32 block shrink-0">Outcome: </strong>
+							<div
+								dangerouslySetInnerHTML={{ __html: caseItem.outcome }}
+								className="item-content"
+							/>
+						</div>
+					)}
+				</div>
+			);
+		};
+
+		if (selectedArticle.cases) {
+			const testedCases = selectedArticle.cases.filter((caseItem) => caseItem.tested);
+			const notTestedCases = selectedArticle.cases.filter((caseItem) => !caseItem.tested);
+
+			return (
+				<>
+					{testedCases.length > 0 && (
+						<div>
+							<h2 className="font-bold text-navy-100 text-2xl mb-4 mt-8">Tested</h2>
+							{testedCases.map((caseItem) => {
+								const id = caseItem.title + caseItem.date_raised;
+								return <Case key={id} caseItem={caseItem} />;
+							})}
+						</div>
+					)}
+
+					{notTestedCases.length > 0 && (
+						<div>
+							<h2 className="font-bold text-navy-100 text-2xl mb-4 mt-8">
+								Not tested yet
+							</h2>
+							{notTestedCases.map((caseItem) => {
+								const id = caseItem.title + caseItem.date_raised;
+								return <Case key={id} caseItem={caseItem} />;
+							})}
+						</div>
+					)}
+				</>
+			);
+		}
+	};
+
 	return (
 		<div className="flex flex-row items-start overflow-hidden">
 			<div className="directories shrink-0 border-r border-charcoal shadow-lg w-60 pt-20 h-screen">
@@ -220,6 +310,7 @@ const Page = ({}) => {
 							dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
 							className="item-content my-8"
 						/>
+						<Cases />
 					</div>
 					<a
 						href={selectedArticle.directusLink}
