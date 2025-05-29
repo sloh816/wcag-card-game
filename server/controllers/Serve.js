@@ -14,12 +14,12 @@ class ServeController {
 	}
 
 	routes() {
-		this.router.use("/view/:file", this.serveDownloads.bind(this));
+		this.router.use("/download/:file", this.serveDownloads.bind(this));
 	}
 
 	serveDownloads(req, res, next) {
 		const { file } = req.params;
-		const filePath = path.join(__dirname, `../downloads/${file}`);
+		const filePath = path.join(__dirname, `../lib/downloads/${file}`);
 		express.static(filePath)(req, res, next);
 	}
 }

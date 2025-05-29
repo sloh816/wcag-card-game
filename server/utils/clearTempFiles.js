@@ -1,6 +1,7 @@
 const fs = require("fs").promises;
 const path = require("path");
 const readline = require("readline");
+const fileSystem = require("./fileSystem");
 
 function clearTempFiles(folders) {
 	// ask user for confirmation
@@ -13,7 +14,7 @@ function clearTempFiles(folders) {
 	const folderString = folders.map((folder) => `\`${folder}\``).join(", ");
 
 	rl.question(
-		`Are you sure you want to delete files in the folders: ${folderString}? (y/n) `,
+		`Are you sure you want to delete the files & folders in the following directories: ${folderString}? (y/n) `,
 		async (answer) => {
 			if (answer.toLowerCase() !== "y") {
 				console.log("❌ Operation cancelled.");
@@ -26,12 +27,14 @@ function clearTempFiles(folders) {
 
 						for (const file of files) {
 							const filePath = path.join(folderPath, file);
+							const stat = await fs.stat(filePath);
 
-							try {
-								await fs.unlink(filePath);
-								console.log(`🗑️ Deleted file: ${filePath}`);
-							} catch (err) {
-								console.error(`❌ Error deleting file: ${filePath}`, err);
+							if (stat.isDirectory()) {
+								// Recursively delete the subdirectory
+								await fileSystem.deleteFolder(filePath);
+							} else {
+								// Delete the file
+								await fileSystem.deleteFile(filePath);
 							}
 						}
 					} catch (err) {
@@ -46,4 +49,4 @@ function clearTempFiles(folders) {
 	);
 }
 
-clearTempFiles(["downloads", "uploads"]);
+clearTempFiles(["lib/downloads", "lib/uploads", "lib/unzippedWordDocs"]);

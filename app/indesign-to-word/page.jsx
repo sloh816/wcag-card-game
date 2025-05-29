@@ -3,28 +3,18 @@ import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import DownloadIcon from "@mui/icons-material/Download";
 import Header from "@/components/Header";
+import ServerConnection from "@/components/ServerConnection";
 
 const Page = ({}) => {
 	const [file, setFile] = useState(null);
 	const [errorMessage, setErrorMessage] = useState(null);
 	const [successMessage, setSuccessMessage] = useState(null);
-	const [serverConnection, setServerConnection] = useState("checking");
 	const [downloadLink, setDownloadLink] = useState(null);
-
-	const checkConnection = async () => {
-		try {
-			await api.checkConnection();
-			setServerConnection(true);
-		} catch (error) {
-			setServerConnection(false);
-			console.log("Error checking connection:", error);
-		}
-	};
+	const htmlDocType = "text/html";
 
 	useEffect(() => {
 		document.title = "InDesign to Word";
-		checkConnection();
-	}, []);
+	});
 
 	const handleFileChange = (event) => {
 		setErrorMessage(null);
@@ -33,6 +23,10 @@ const Page = ({}) => {
 
 		const selectedFile = event.target.files[0];
 		if (selectedFile) {
+			if (selectedFile.type !== htmlDocType) {
+				setErrorMessage("Please upload a valid HTML file (.html)");
+				return;
+			}
 			setFile(selectedFile);
 		}
 	};
@@ -44,6 +38,11 @@ const Page = ({}) => {
 
 		if (!file) {
 			setErrorMessage("Please upload a file");
+			return;
+		}
+
+		if (file.type !== htmlDocType) {
+			setErrorMessage("Please upload a valid HTML file (.html)");
 			return;
 		}
 
@@ -66,17 +65,7 @@ const Page = ({}) => {
 		<div className="max-w-4xl mx-auto px-4">
 			<Header title="InDesign to Word" />
 			<h1 className="heading-1 mt-40 mb-10">Prepend Word Styles</h1>
-			{serverConnection === "checking" && (
-				<p className="bg-honey-20 py-2 px-4 rounded-md mt-4 border border-honey-100 mb-8">
-					Checking server connection...
-				</p>
-			)}
-			{!serverConnection && (
-				<p className="bg-grapefruit-20 py-2 px-4 rounded-md mt-4 border border-grapefruit-100 mb-8">
-					Server is not reachable 😭😭😭 Please start the server (or ask Shannon to, she
-					probably forgot lmao)
-				</p>
-			)}
+			<ServerConnection />
 			<div className="text-charcoal-100 mb-8">
 				<p>
 					After you've exported you InDesign file to HTML, you can use this tool to

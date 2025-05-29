@@ -2,14 +2,29 @@ const fileSystem = require("../utils/fileSystem");
 const cheerio = require("cheerio");
 
 class Html {
-	constructor(filePath) {
+	constructor(filePath, html) {
 		this.filePath = filePath;
+		this.html = html;
 	}
 
-	async prependStyles() {
+	async getHtml() {
+		if (!this.html) {
+			// Read the HTML file
+			const content = await fileSystem.readFile(this.filePath);
+			this.html = content;
+		}
+
+		return this.html;
+	}
+
+	setHtml(html) {
+		this.html = html;
+	}
+
+	async prependStyles(outputPath) {
 		console.log("🔃 Prepending styles:", this.filePath);
 		// Read the HTML file
-		const content = await fileSystem.readFile(this.filePath);
+		const content = await this.getHtml();
 
 		// Prepend styles to the HTML content
 		const $ = cheerio.load(content);
@@ -69,18 +84,23 @@ class Html {
 		prependClasses("[class]:is(span, em, strong)", "#__", "[[[", "]]]");
 		prependClasses("[class]", "$__");
 
-		const updatedHtmlContent = $.html();
+		this.html = $.html();
+		this.filePath = outputPath;
+		this.writeFile();
 
-		// Save the updated HTML content to a new file
-		const newFilePath = this.filePath
-			.replace(".html", "-processed.html")
-			.replace("server/uploads", "server/downloads");
-		fileSystem.writeFile(newFilePath, updatedHtmlContent);
+		console.log("✅ Prepend styles done:", this.filePath);
 
-		console.log("✅ Prepend styles done:", newFilePath);
-
-		return newFilePath;
+		return this.filePath;
 	}
+
+	async writeFile() {
+		const file = await fileSystem.writeFile(this.filePath, this.html);
+
+		console.log("✅ HTML file written to:", file);
+		return file;
+	}
+
+	async convertEmfsToPng() {}
 }
 
 module.exports = Html;

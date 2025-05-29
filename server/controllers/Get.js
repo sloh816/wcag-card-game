@@ -24,7 +24,7 @@ class GetController {
 			return res.status(400).send("File name is required");
 		}
 
-		const filePath = `server/downloads/${filename}`;
+		const filePath = `server/lib/downloads/${filename}`;
 
 		// Check if the file exists
 		if (!fs.existsSync(filePath)) {
