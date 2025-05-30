@@ -35,19 +35,16 @@ class PostController {
 		}
 
 		// rename the uploaded file
-		const filePath = await this.uploadFile(file);
+		const uploadedHtml = await this.uploadFile(file);
 
 		// process the uploaded file
-		const html = new Html(filePath, "");
-		const outputPath = filePath
-			.replace("lib/uploads", "lib/downloads")
-			.replace(".html", "-processed.html");
-		await html.prependStyles(outputPath);
+		const html = new Html(uploadedHtml.file, uploadedHtml.folder);
+		const outputFolder = "server/lib/downloads";
+		const outputFileName = html.file.replace(".html", "_processed_for_word.html");
+		await html.prependStyles(outputFolder, outputFileName);
 
 		// get download path
-		const downloadFile = outputPath.split("/").pop();
-		const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL;
-		const downloadPath = `${serverUrl}/download/${downloadFile}`;
+		const downloadPath = this.getDownloadPath(html.file);
 		res.json({ downloadPath });
 	}
 
@@ -59,15 +56,18 @@ class PostController {
 		}
 
 		// rename the uploaded file
-		const filePath = await this.uploadFile(file);
+		const uploadedWordDoc = await this.uploadFile(file);
 
 		// convert the Word document to HTML
+		const filePath = uploadedWordDoc.folder + "/" + uploadedWordDoc.file;
 		const wordDocument = new WordDocument(filePath);
-		await wordDocument.convertToHtml();
+		const html = await wordDocument.convertToHtml();
+		const outputZipFile = await html.zip();
+		const zipFileName = outputZipFile.split("/").pop();
 
-		res.json({
-			message: "File uploaded successfully"
-		});
+		// get download path
+		const downloadPath = this.getDownloadPath(zipFileName);
+		res.json({ downloadPath });
 	}
 
 	async uploadFile(file) {
@@ -75,12 +75,19 @@ class PostController {
 		const fileExtension = file.originalname.split(".").pop();
 		const fileName = file.originalname.replace("." + fileExtension, "");
 		const newFileName = `${Date.now()}_${fileName}.${fileExtension}`;
-		const newFilePath = `server/lib/uploads/${newFileName}`;
+
+		const folder = "server/lib/uploads";
+		const newFilePath = folder + "/" + newFileName;
 		await fileSystem.renameFile(file.path, newFilePath);
 
 		console.log("✅📁 File uploaded:", newFilePath);
 
-		return newFilePath;
+		return { file: newFileName, folder };
+	}
+
+	getDownloadPath(fileName) {
+		const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL;
+		return `${serverUrl}/download/${fileName}`;
 	}
 }
 

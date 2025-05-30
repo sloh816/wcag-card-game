@@ -12,6 +12,7 @@
         "@emotion/styled": "^11.13.5",
         "@mui/icons-material": "^6.1.10",
         "@mui/material": "^6.1.10",
+        "adm-zip": "^0.5.16",
         "axios": "^1.9.0",
         "body-parser": "^2.2.0",
         "cheerio": "^1.0.0",

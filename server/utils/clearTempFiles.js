@@ -49,4 +49,4 @@ function clearTempFiles(folders) {
 	);
 }
 
-clearTempFiles(["lib/downloads", "lib/uploads", "lib/unzippedWordDocs"]);
+clearTempFiles(["lib/downloads", "lib/uploads", "lib/unzippedWordDocs", "lib/html"]);

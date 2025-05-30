@@ -2,6 +2,7 @@ const fsp = require("fs").promises;
 const fs = require("fs");
 const path = require("path");
 const unzipper = require("unzipper");
+const AdmZip = require("adm-zip");
 
 const fileSystem = {
 	renameFile: async (oldPath, newPath) => {
@@ -113,6 +114,25 @@ const fileSystem = {
 		} catch (err) {
 			console.error("❌📂 Error deleting folder:", err);
 			throw err;
+		}
+	},
+
+	zipFolder: async (folder, outputFilePath) => {
+		try {
+			const zip = new AdmZip();
+			zip.addLocalFolder(folder);
+
+			// Ensure the directory for the zip file exists
+			const outputDir = path.dirname(outputFilePath);
+			await fs.promises.mkdir(outputDir, { recursive: true });
+
+			// Write the zip file
+			zip.writeZip(outputFilePath);
+
+			console.log("✅📂 Folder zipped to", outputFilePath);
+		} catch (error) {
+			console.error("❌📂 Error zipping folder:", err);
+			throw error;
 		}
 	}
 };

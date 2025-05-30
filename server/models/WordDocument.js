@@ -89,9 +89,20 @@ class WordDocument {
 				const headingLevel = parseInt(outlineLevel) + 1;
 				tag = "h" + headingLevel;
 
-				if (name === "TOC Heading") {
-					tag = "h2";
+				if (outlineLevel > 6) {
+					tag = "p";
 				}
+			}
+
+			// if the style is based on a heading, set the tag to h1, h2, etc.
+			const basedOn = style["w:basedOn"]?.[0]?.["$"]["w:val"];
+			if (basedOn && basedOn.startsWith("Heading")) {
+				const headingLevel = parseInt(basedOn.replace("Heading", ""));
+				tag = "h" + headingLevel;
+			}
+
+			if (name === "TOC Heading") {
+				tag = "h2";
 			}
 
 			// If the style is a character style, set the tag to span, em, or strong
@@ -117,11 +128,6 @@ class WordDocument {
 
 			if (type === "table") {
 				tag = "table";
-
-				// if the table name contains 'layout' or 'callout', make it a <div>
-				if (slugify(name).includes("layout") || slugify(name).includes("callout")) {
-					tag = "div";
-				}
 			}
 
 			if (!skipStyle) {
@@ -154,7 +160,7 @@ class WordDocument {
 	async convertToHtml() {
 		// create a folder in the downloads directory
 		const outputFolder = await fileSystem.createFolder(
-			"server/lib/downloads/" + this.filePath.split("/").pop().replace(".docx", "") + "_html"
+			"server/lib/html/" + this.filePath.split("/").pop().replace(".docx", "") + "_html"
 		);
 
 		// generate a style map from the unzipped Word document
@@ -172,13 +178,13 @@ class WordDocument {
 			options
 		);
 
-		const htmlFilePath = outputFolder + "/index.html";
-		const html = new Html(htmlFilePath, htmlContent);
+		const html = new Html("index.html", outputFolder, htmlContent, "images");
+		html.cleanUpWordToHtml();
 
 		// write the HTML content to a file
 		await html.writeFile();
 
-		return outputFolder;
+		return html;
 	}
 }
 
