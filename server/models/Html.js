@@ -1,28 +1,34 @@
 const fileSystem = require("../utils/fileSystem");
 const cheerio = require("cheerio");
+const { slugify } = require("../utils/strings");
+const { text } = require("body-parser");
 
 class Html {
-	constructor(filePath, html) {
-		this.filePath = filePath;
-		this.html = html;
+	constructor(file, folder, content = null, imagesFolder = null, cssFile = null) {
+		this.file = file;
+		this.folder = folder;
+		this.content = content;
+		this.imagesFolder = imagesFolder;
+		this.cssFile = cssFile;
+	}
+
+	getFilePath() {
+		if (this.folder && this.file) {
+			return `${this.folder}/${this.file}`;
+		}
 	}
 
 	async getHtml() {
-		if (!this.html) {
+		if (!this.content) {
 			// Read the HTML file
-			const content = await fileSystem.readFile(this.filePath);
-			this.html = content;
+			const content = await fileSystem.readFile(this.getFilePath());
+			this.content = content;
 		}
 
-		return this.html;
+		return this.content;
 	}
 
-	setHtml(html) {
-		this.html = html;
-	}
-
-	async prependStyles(outputPath) {
-		console.log("🔃 Prepending styles:", this.filePath);
+	async prependStyles(outputFolder, outputFileName) {
 		// Read the HTML file
 		const content = await this.getHtml();
 
@@ -84,23 +90,107 @@ class Html {
 		prependClasses("[class]:is(span, em, strong)", "#__", "[[[", "]]]");
 		prependClasses("[class]", "$__");
 
-		this.html = $.html();
-		this.filePath = outputPath;
-		this.writeFile();
+		this.content = $.html();
+		this.folder = outputFolder;
+		this.file = outputFileName;
+		await this.writeFile();
 
-		console.log("✅ Prepend styles done:", this.filePath);
-
-		return this.filePath;
+		console.log("✅ Prepend styles done");
 	}
 
 	async writeFile() {
-		const file = await fileSystem.writeFile(this.filePath, this.html);
+		const file = await fileSystem.writeFile(this.getFilePath(), this.content);
 
 		console.log("✅ HTML file written to:", file);
 		return file;
 	}
 
-	async convertEmfsToPng() {}
+	async cleanUpWordToHtml() {
+		const $ = cheerio.load(this.content);
+
+		// Select all <a> tags with an id that starts with '_' and move the id to their parent tag
+		$("a[id^=_]").each((_, element) => {
+			const id = $(element).attr("id");
+			$(element).parent().attr("id", id); // Move the id to its parent tag
+			$(element).remove();
+		});
+
+		// Replace TOC links with cleaner names
+		$("[id^=_]").each((index, element) => {
+			const currentId = $(element).attr("id");
+			const cleanId = index + "_" + slugify($(element).text().trim());
+			$(`[href*=#${currentId}]`).attr("href", `#${cleanId}`);
+			$(element).attr("id", cleanId);
+		});
+
+		// Remove page numbers from toc
+		$("[class^=toc-]").each((_, element) => {
+			const text = $(element).text();
+			const cleanText = text.replace(/\s*\d+$/, "").trim(); // Remove trailing numbers
+			const currentHtml = $(element).html();
+			$(element).html(currentHtml.replace(text, cleanText));
+		});
+
+		// unwrap <img> tags from <p> tags
+		$("p > img").each((_, img) => {
+			$(img).unwrap();
+		});
+
+		// add an aria label to the footnote back button
+		$("a[href^=#footnote]").each((_, a) => {
+			$(a).attr("aria-label", "Back to endnote reference");
+		});
+
+		// wrap the endnotes list in a 'section' tag and add a 'Endnotes' heading
+		$("ol:has(li[id*=footnote])").each((_, ol) => {
+			$(ol).wrap('<section id="endnotes"></section>');
+			$(ol).prepend("<h2>Endnotes</h2>");
+		});
+
+		//  if table class includes "callout" or "layout", convert to div
+		$("table[class*='callout'], table[class*='layout']").each((_, table) => {
+			// if table is one cell, convert to one div
+			const className = $(table).attr("class");
+			if ($(table).find("td, th").length === 1) {
+				const cellContent = $(table).html();
+				$(table).replaceWith(`<div class="${className}">${cellContent}</div>`);
+			} else {
+				// if table has multiple cells, convert to nested divs and apply grid styles
+				const tableDiv = $("<div></div>").addClass(className);
+				$(table)
+					.find("tr")
+					.each((_, tr) => {
+						const rowDiv = $("<div></div>").addClass(className + "__row");
+
+						$(tr)
+							.find("td, th")
+							.each((_, cell) => {
+								const cellDiv = $("<div></div>").addClass(
+									className + "__row__cell"
+								);
+								cellDiv.html($(cell).html());
+								rowDiv.append(cellDiv);
+							});
+
+						tableDiv.append(rowDiv);
+					});
+
+				$(table).after(tableDiv);
+				$(table).remove();
+			}
+		});
+
+		// remove empty elements
+		$("*:empty:not(img, br)").remove();
+
+		this.content = $("body").html();
+	}
+
+	async zip() {
+		const outputZipPath = this.folder.replace("/html", "/downloads") + ".zip";
+		await fileSystem.zipFolder(this.folder, outputZipPath);
+		return outputZipPath;
+	}
 }
 
 module.exports = Html;
