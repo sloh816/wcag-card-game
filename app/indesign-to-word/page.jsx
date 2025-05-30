@@ -4,6 +4,7 @@ import api from "@/lib/api";
 import DownloadIcon from "@mui/icons-material/Download";
 import Header from "@/components/Header";
 import ServerConnection from "@/components/ServerConnection";
+import SuccessMessage from "@/components/SuccessMessage";
 
 const Page = ({}) => {
 	const [file, setFile] = useState(null);
@@ -99,16 +100,11 @@ const Page = ({}) => {
 			</form>
 
 			{successMessage && (
-				<div className="bg-teal-20 py-2 px-4 rounded-md border border-teal-100 mt-8">
-					<p>{successMessage}</p>
-
-					{downloadLink && (
-						<a className="button button--navy mt-2" href={downloadLink} download={true}>
-							<DownloadIcon />
-							Download HTML file
-						</a>
-					)}
-				</div>
+				<SuccessMessage
+					downloadLink={downloadLink}
+					downloadButtonLabel="Download HTML File"
+					message={successMessage}
+				/>
 			)}
 		</div>
 	);

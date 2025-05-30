@@ -1,15 +1,16 @@
 "use client";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
-import DownloadIcon from "@mui/icons-material/Download";
 import Header from "@/components/Header";
 import ServerConnection from "@/components/ServerConnection";
+import SuccessMessage from "@/components/SuccessMessage";
 
 const Page = ({}) => {
 	const [file, setFile] = useState(null);
 	const [errorMessage, setErrorMessage] = useState(null);
 	const [successMessage, setSuccessMessage] = useState(null);
 	const [downloadLink, setDownloadLink] = useState(null);
+	const [isConverting, setIsConverting] = useState(false);
 	const wordDocumentType =
 		"application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -50,20 +51,21 @@ const Page = ({}) => {
 		}
 
 		try {
+			setIsConverting(true);
 			const formData = new FormData();
 			formData.append("file", file);
 
 			const response = await api.wordToHtml(formData);
 
-			console.log("Response:", response);
-
 			if (response.status === 200) {
+				setIsConverting(false);
 				setSuccessMessage("Word document processed successfully!");
 				setDownloadLink(response.data.downloadPath);
 			}
 		} catch (error) {
 			console.error("Error uploading file:", error);
 			setErrorMessage("An error occurred while uploading the file.");
+			setIsConverting(false);
 		}
 	};
 
@@ -95,20 +97,35 @@ const Page = ({}) => {
 					className="border-dashed border-navy-100 border-2 p-8 w-full rounded-lg bg-slate-100 mt-4 cursor-pointer hover:bg-navy-20 transition-all"
 					onChange={handleFileChange}
 				/>
-				<button className="button button--grapefruit mt-4">Convert</button>
+
+				<div className="flex items-center my-4 gap-2">
+					<input type="checkbox" className="w-4 h-4" id="template" disabled />
+					<label htmlFor="template" className="text-charcoal-100">
+						Include template code
+					</label>
+				</div>
+
+				<div className="flex items-center my-4 gap-2">
+					<input type="checkbox" className="w-4 h-4" id="generate-css" disabled />
+					<label htmlFor="generate-css" className="text-charcoal-100">
+						Generate CSS
+					</label>
+				</div>
+
+				{!isConverting && (
+					<button className="button button--grapefruit mt-4">Convert</button>
+				)}
+				{isConverting && (
+					<span className="button button--grapefruit mt-4">Converting...</span>
+				)}
 			</form>
 
 			{successMessage && (
-				<div className="bg-teal-20 py-2 px-4 rounded-md border border-teal-100 mt-8">
-					<p>{successMessage}</p>
-
-					{downloadLink && (
-						<a className="button button--navy mt-2" href={downloadLink} download={true}>
-							<DownloadIcon />
-							Download HTML file
-						</a>
-					)}
-				</div>
+				<SuccessMessage
+					downloadLink={downloadLink}
+					downloadButtonLabel="Download ZIP"
+					message={successMessage}
+				/>
 			)}
 		</div>
 	);
