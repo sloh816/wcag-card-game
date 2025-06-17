@@ -1,29 +1,21 @@
 "use client";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
-import DownloadIcon from "@mui/icons-material/Download";
 import Header from "@/components/Header";
+import ServerConnection from "@/components/ServerConnection";
+import SuccessMessage from "@/components/SuccessMessage";
 
 const Page = ({}) => {
 	const [file, setFile] = useState(null);
 	const [errorMessage, setErrorMessage] = useState(null);
 	const [successMessage, setSuccessMessage] = useState(null);
-	const [serverConnection, setServerConnection] = useState("checking");
 	const [downloadLink, setDownloadLink] = useState(null);
-
-	const checkConnection = async () => {
-		try {
-			await api.checkConnection();
-			setServerConnection(true);
-		} catch (error) {
-			setServerConnection(false);
-			console.log("Error checking connection:", error);
-		}
-	};
+	const [isConverting, setIsConverting] = useState(false);
+	const wordDocumentType =
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 	useEffect(() => {
 		document.title = "Word to HTML";
-		checkConnection();
 	}, []);
 
 	const handleFileChange = (event) => {
@@ -32,7 +24,13 @@ const Page = ({}) => {
 		setFile(null);
 
 		const selectedFile = event.target.files[0];
+
 		if (selectedFile) {
+			if (selectedFile.type !== wordDocumentType) {
+				setErrorMessage("Please upload a valid Word document (.docx)");
+				return;
+			}
+
 			setFile(selectedFile);
 		}
 	};
@@ -47,18 +45,31 @@ const Page = ({}) => {
 			return;
 		}
 
+		if (file.type !== wordDocumentType) {
+			setErrorMessage("Please upload a valid Word document (.docx)");
+			return;
+		}
+
 		try {
+			setIsConverting(true);
 			const formData = new FormData();
 			formData.append("file", file);
-			const response = await api.prependStyles(formData);
-			console.log("Response:", response);
+
+			const response = await api.wordToHtml(formData);
+
 			if (response.status === 200) {
-				setSuccessMessage("HTML processed successfully!");
+				setIsConverting(false);
+				setSuccessMessage("Word document processed successfully!");
 				setDownloadLink(response.data.downloadPath);
 			}
 		} catch (error) {
-			console.error("Error uploading file:", error);
-			setErrorMessage("An error occurred while uploading the file.");
+			console.log("Error uploading file:", error);
+			if (error.response && error.response.data) {
+				setErrorMessage(error.response.data.error);
+			} else {
+				setErrorMessage("An error occurred while uploading the file.");
+			}
+			setIsConverting(false);
 		}
 	};
 
@@ -66,17 +77,7 @@ const Page = ({}) => {
 		<div className="max-w-4xl mx-auto px-4">
 			<Header title="Word to HTML" />
 			<h1 className="heading-1 mt-40 mb-10">Word to HTML</h1>
-			{serverConnection === "checking" && (
-				<p className="bg-honey-20 py-2 px-4 rounded-md mt-4 border border-honey-100 mb-8">
-					Checking server connection...
-				</p>
-			)}
-			{!serverConnection && (
-				<p className="bg-grapefruit-20 py-2 px-4 rounded-md mt-4 border border-grapefruit-100 mb-8">
-					Server is not reachable 😭😭😭 Please start the server (or ask Shannon to, she
-					probably forgot lmao)
-				</p>
-			)}
+			<ServerConnection />
 			<div className="text-charcoal-100 mb-8">
 				<p>Upload a Word Document (.docx) to convert it into a HTML file.</p>
 				<p className="mt-2">Make sure that:</p>
@@ -96,24 +97,39 @@ const Page = ({}) => {
 			<form onSubmit={handleSubmit}>
 				<input
 					type="file"
-					accept=".html"
+					accept=".docx"
 					className="border-dashed border-navy-100 border-2 p-8 w-full rounded-lg bg-slate-100 mt-4 cursor-pointer hover:bg-navy-20 transition-all"
 					onChange={handleFileChange}
 				/>
-				<button className="button button--grapefruit mt-4">Convert</button>
+
+				<div className="flex items-center my-4 gap-2">
+					<input type="checkbox" className="w-4 h-4" id="template" disabled />
+					<label htmlFor="template" className="text-charcoal-100">
+						Include template code
+					</label>
+				</div>
+
+				<div className="flex items-center my-4 gap-2">
+					<input type="checkbox" className="w-4 h-4" id="generate-css" disabled />
+					<label htmlFor="generate-css" className="text-charcoal-100">
+						Generate CSS
+					</label>
+				</div>
+
+				{!isConverting && (
+					<button className="button button--grapefruit mt-4">Convert</button>
+				)}
+				{isConverting && (
+					<span className="button button--grapefruit mt-4">Converting...</span>
+				)}
 			</form>
 
 			{successMessage && (
-				<div className="bg-teal-20 py-2 px-4 rounded-md border border-teal-100 mt-8">
-					<p>{successMessage}</p>
-
-					{downloadLink && (
-						<a className="button button--navy mt-2" href={downloadLink} download={true}>
-							<DownloadIcon />
-							Download HTML file
-						</a>
-					)}
-				</div>
+				<SuccessMessage
+					downloadLink={downloadLink}
+					downloadButtonLabel="Download ZIP"
+					message={successMessage}
+				/>
 			)}
 		</div>
 	);

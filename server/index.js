@@ -22,9 +22,17 @@ class Server {
 
 	// load routes from controllers
 	routes() {
-		new PostController(this.app);
-		new GetController(this.app);
-		new ServeController(this.app);
+		try {
+			new PostController(this.app);
+			new GetController(this.app);
+			new ServeController(this.app);
+
+			this.app.get("/", (req, res) => {
+				res.send("Hello from root!");
+			});
+		} catch (error) {
+			console.error("Error loading routes:", error);
+		}
 	}
 
 	start() {

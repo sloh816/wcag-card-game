@@ -1,0 +1,246 @@
+const fileSystem = require("../utils/fileSystem");
+const writeImageFiles = require("../utils/writeImageFiles");
+const { slugify, repeatString } = require("../utils/strings");
+const mammoth = require("mammoth");
+const xml2js = require("xml2js");
+const Html = require("./Html");
+const cheerio = require("cheerio");
+const fs = require("fs");
+
+class WordDocument {
+	constructor(filePath) {
+		this.filePath = filePath;
+		this.unzippedFolder = null;
+	}
+
+	async unzip() {
+		// create a folder for the word document in the unzippedWordDocs directory
+		const unzippedFolder = await fileSystem.createFolder(
+			"server/lib/unzippedWordDocs/" + this.filePath.split("/").pop().replace(".docx", "")
+		);
+
+		// copy word doc to folder
+		const wordDoc = await fileSystem.copyFile(
+			this.filePath,
+			unzippedFolder + "/" + this.filePath.split("/").pop()
+		);
+
+		// covert to zip file
+		const zipFilePath = wordDoc.replace(".docx", ".zip");
+		await fileSystem.renameFile(wordDoc, zipFilePath);
+
+		// unzip the file
+		await fileSystem.unzipFile(zipFilePath, unzippedFolder);
+
+		// remove the zip file
+		await fileSystem.deleteFile(zipFilePath);
+
+		this.unzippedFolder = unzippedFolder;
+	}
+
+	async generateStyleMap() {
+		if (!this.unzippedFolder) {
+			await this.unzip();
+		}
+
+		// read the styles.xml file from the unzipped Word document
+		const parser = new xml2js.Parser();
+		const stylesXmlPath = this.unzippedFolder + "/word/styles.xml";
+		const stylesXmlContent = await fileSystem.readFile(stylesXmlPath);
+		const stylesObject = await parser.parseStringPromise(stylesXmlContent);
+
+		// read the numbering.xml file from the unzipped Word document
+		const numberingXmlPath = this.unzippedFolder + "/word/numbering.xml";
+		const numberingXmlContent = await fileSystem.readFile(numberingXmlPath);
+		const numberingObject = await parser.parseStringPromise(numberingXmlContent);
+
+		const styles = stylesObject["w:styles"]["w:style"];
+
+		const styleMap = [];
+		for (const style of styles) {
+			let skipStyle = false;
+
+			const name = style["w:name"][0]["$"]["w:val"];
+			const styleType = style["$"]["w:type"] || "paragraph"; // default to paragraph if type is not defined
+			const outlineLevel = style["w:pPr"]?.[0]?.["w:outlineLvl"]?.[0]?.["$"]["w:val"];
+			const id = style["$"]["w:styleId"];
+
+			const typeMap = {
+				paragraph: "p",
+				character: "r",
+				table: "table"
+			};
+
+			let fresh = ":fresh";
+			let tag = "p";
+			let type = typeMap[styleType];
+			let className = "." + slugify(name);
+
+			// Check if the style is a bullet or numbered list style
+			const isBulletStyle = this.isBullet(id, numberingObject);
+			if (isBulletStyle) {
+				if (isBulletStyle["bulletType"] !== "bullet") {
+					tag = repeatString("ol > li", isBulletStyle["level"], " > ");
+				} else {
+					tag = repeatString("ul > li", isBulletStyle["level"], " > ");
+				}
+			}
+
+			// If the style is a heading, set the tag to h1, h2, etc. This overrides the bullet/numbered list style
+			if (outlineLevel) {
+				const headingLevel = parseInt(outlineLevel) + 1;
+				tag = "h" + headingLevel;
+
+				if (outlineLevel > 6) {
+					tag = "p";
+				}
+			}
+
+			// if the style is based on a built-in heading, set the tag to h1, h2, etc.
+			const basedOn = style["w:basedOn"]?.[0]?.["$"]["w:val"];
+			if (basedOn && !tag.startsWith("h")) {
+				const isBasedOnHeading = basedOn.startsWith("Heading") || basedOn === "TOCHeading";
+
+				if (isBasedOnHeading) {
+					const headingLevel =
+						basedOn !== "TOCHeading" ? parseInt(basedOn.replace("Heading", "")) : 2;
+					tag = "h" + headingLevel;
+				}
+			}
+
+			if (name === "TOC Heading") {
+				tag = "h2";
+			}
+
+			// If the style is a character style, set the tag to span, em, or strong
+			if (type === "r") {
+				fresh = "";
+				tag = "span";
+
+				// ignore hyperlinks
+				if (name.includes("Hyperlink")) {
+					skipStyle = true;
+				}
+
+				if (name === "Emphasis") {
+					tag = "em";
+					className = "";
+				}
+
+				if (name === "Strong") {
+					tag = "strong";
+					className = "";
+				}
+			}
+
+			if (type === "table") {
+				tag = "table";
+			}
+
+			if (!skipStyle) {
+				const mapItem = type + `[style-name='${name}']` + " => " + tag + className + fresh;
+				styleMap.push(mapItem);
+			}
+		}
+
+		return styleMap;
+	}
+
+	async getImageSizes() {
+		if (!this.unzippedFolder) {
+			await this.unzip();
+		}
+
+		// read the document.xml file from the unzipped Word document
+		const documentXmlPath = this.unzippedFolder + "/word/document.xml";
+		const xmlContent = fs.readFileSync(documentXmlPath, "utf-8");
+		const parser = new xml2js.Parser({ explicitArray: false });
+		const doc = await parser.parseStringPromise(xmlContent);
+
+		const drawings = [];
+		const EMU_PER_PIXEL = 9025;
+
+		// Recursively search for drawings
+		const traverse = (node) => {
+			if (!node || typeof node !== "object") return;
+
+			for (const key in node) {
+				const child = node[key];
+
+				if (key === "w:drawing") {
+					const drawing = child["wp:inline"];
+
+					const extent = drawing?.["wp:extent"]?.$;
+					if (extent) {
+						const cx = parseInt(extent.cx, 10);
+						const cy = parseInt(extent.cy, 10);
+
+						drawings.push({
+							width: Math.round(cx / EMU_PER_PIXEL),
+							height: Math.round(cy / EMU_PER_PIXEL)
+						});
+					}
+				} else {
+					traverse(child);
+				}
+			}
+		};
+
+		traverse(doc);
+
+		return drawings;
+	}
+
+	// takes a styleId and the numberingXml object as input, and returns the bullet level if the style is a bullet/number list style
+	isBullet(styleId, numberingObject) {
+		for (const abstractNum of numberingObject["w:numbering"]["w:abstractNum"]) {
+			if (abstractNum["w:lvl"]) {
+				for (const lvl of abstractNum["w:lvl"]) {
+					if (lvl["w:pStyle"] && lvl["w:pStyle"][0]["$"]["w:val"] === styleId) {
+						return {
+							level: parseInt(lvl["$"]["w:ilvl"]) + 1,
+							bulletType: lvl["w:numFmt"][0]["$"]["w:val"]
+						};
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+	async convertToHtml() {
+		// create a folder in the downloads directory
+		const outputFolder = await fileSystem.createFolder(
+			"server/lib/html/" + this.filePath.split("/").pop().replace(".docx", "") + "_html"
+		);
+
+		// get image sizs of the images that are Inline with text
+		const imageSizes = await this.getImageSizes();
+
+		// generate a style map from the unzipped Word document
+		const styleMap = await this.generateStyleMap();
+
+		// configure mammoth options
+		const options = {
+			styleMap: styleMap,
+			convertImage: await writeImageFiles(outputFolder, "images")
+		};
+
+		// convert the Word document to HTML
+		const { value: htmlContent } = await mammoth.convertToHtml(
+			{ path: this.filePath },
+			options
+		);
+
+		const html = new Html("index.html", outputFolder, htmlContent, "images");
+		await html.cleanUpWordToHtml(imageSizes);
+
+		// write the HTML content to a file
+		await html.writeFile();
+
+		return html;
+	}
+}
+
+module.exports = WordDocument;

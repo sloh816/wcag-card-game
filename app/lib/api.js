@@ -16,6 +16,16 @@ const api = {
 		return response;
 	},
 
+	wordToHtml: async (formData) => {
+		const response = await axios.post(`${serverUrl}/word-to-html`, formData, {
+			headers: {
+				"Content-Type": "multipart/form-data"
+			}
+		});
+		console.log(response);
+		return response;
+	},
+
 	checkConnection: async () => {
 		try {
 			const response = await axios.get(`${serverUrl}/check-connection`);

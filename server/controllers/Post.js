@@ -1,11 +1,13 @@
 const express = require("express");
 const multer = require("multer");
-const fileSystem = require("../utils/fileSystem");
-const Html = require("../models/Html");
 require("dotenv").config();
 
+const fileSystem = require("../utils/fileSystem");
+const Html = require("../models/Html");
+const WordDocument = require("../models/WordDocument");
+
 const upload = multer({
-	dest: "server/uploads/"
+	dest: "server/lib/uploads/"
 });
 
 class PostController {
@@ -22,6 +24,7 @@ class PostController {
 
 	routes() {
 		this.router.post("/prepend-styles", upload.single("file"), this.prependStyles.bind(this));
+		this.router.post("/word-to-html", upload.single("file"), this.wordToHtml.bind(this));
 	}
 
 	async prependStyles(req, res) {
@@ -32,28 +35,63 @@ class PostController {
 		}
 
 		// rename the uploaded file
-		const filePath = await this.uploadFile(file);
+		const uploadedHtml = await this.uploadFile(file);
 
 		// process the uploaded file
-		const html = new Html(filePath);
-		const newFilePath = await html.prependStyles();
-		const downloadFile = newFilePath.split("/").pop();
-		const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL;
-		const downloadPath = `${serverUrl}/download/${downloadFile}`;
+		const html = new Html(uploadedHtml.file, uploadedHtml.folder);
+		const outputFolder = "server/lib/downloads";
+		const outputFileName = html.file.replace(".html", "_processed_for_word.html");
+		await html.prependStyles(outputFolder, outputFileName);
+
+		// get download path
+		const downloadPath = this.getDownloadPath(html.file);
 		res.json({ downloadPath });
+	}
+
+	async wordToHtml(req, res) {
+		// check if there's a file
+		const file = req.file;
+		if (!file) {
+			return res.status(400).json({ error: "No file uploaded" });
+		}
+
+		// rename the uploaded file
+		const uploadedWordDoc = await this.uploadFile(file);
+
+		try {
+			// convert the Word document to HTML
+			const filePath = uploadedWordDoc.folder + "/" + uploadedWordDoc.file;
+			const wordDocument = new WordDocument(filePath);
+			const html = await wordDocument.convertToHtml();
+			const outputZipFile = await html.zip();
+			const zipFileName = outputZipFile.split("/").pop();
+
+			// get download path
+			const downloadPath = this.getDownloadPath(zipFileName);
+			res.json({ downloadPath });
+		} catch (error) {
+			res.status(500).json({ error: "Error processing Word document: " + error.message });
+		}
 	}
 
 	async uploadFile(file) {
 		// Rename uploaded file to original name + timestamp
-		const fileName = file.originalname.split(".")[0];
 		const fileExtension = file.originalname.split(".").pop();
-		const newFileName = `${fileName}-${Date.now()}.${fileExtension}`;
-		const newFilePath = `server/uploads/${newFileName}`;
+		const fileName = file.originalname.replace("." + fileExtension, "");
+		const newFileName = `${Date.now()}_${fileName}.${fileExtension}`;
+
+		const folder = "server/lib/uploads";
+		const newFilePath = folder + "/" + newFileName;
 		await fileSystem.renameFile(file.path, newFilePath);
 
 		console.log("✅📁 File uploaded:", newFilePath);
 
-		return newFilePath;
+		return { file: newFileName, folder };
+	}
+
+	getDownloadPath(fileName) {
+		const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL;
+		return `${serverUrl}/download/${fileName}`;
 	}
 }
 
