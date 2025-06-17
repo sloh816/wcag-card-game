@@ -195,6 +195,12 @@ class Html {
 			}
 		});
 
+		// if the table class includes 'large' or 'wrap', wrap in a div with class 'table-wrapper'
+		$("table[class*='large'], table[class*='wrap']").each((_, table) => {
+			const tableWrapper = $("<div></div>").addClass("table-wrapper");
+			$(table).wrap(tableWrapper);
+		});
+
 		// remove empty elements
 		$("*:empty:not(img, br, th, td)").remove();
 

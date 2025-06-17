@@ -82,7 +82,6 @@ class WordDocument {
 					tag = repeatString("ol > li", isBulletStyle["level"], " > ");
 				} else {
 					tag = repeatString("ul > li", isBulletStyle["level"], " > ");
-					// console.log({ className, tag, isBulletStyle });
 				}
 			}
 
