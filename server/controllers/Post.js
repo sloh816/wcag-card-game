@@ -58,16 +58,20 @@ class PostController {
 		// rename the uploaded file
 		const uploadedWordDoc = await this.uploadFile(file);
 
-		// convert the Word document to HTML
-		const filePath = uploadedWordDoc.folder + "/" + uploadedWordDoc.file;
-		const wordDocument = new WordDocument(filePath);
-		const html = await wordDocument.convertToHtml();
-		const outputZipFile = await html.zip();
-		const zipFileName = outputZipFile.split("/").pop();
+		try {
+			// convert the Word document to HTML
+			const filePath = uploadedWordDoc.folder + "/" + uploadedWordDoc.file;
+			const wordDocument = new WordDocument(filePath);
+			const html = await wordDocument.convertToHtml();
+			const outputZipFile = await html.zip();
+			const zipFileName = outputZipFile.split("/").pop();
 
-		// get download path
-		const downloadPath = this.getDownloadPath(zipFileName);
-		res.json({ downloadPath });
+			// get download path
+			const downloadPath = this.getDownloadPath(zipFileName);
+			res.json({ downloadPath });
+		} catch (error) {
+			res.status(500).json({ error: "Error processing Word document: " + error.message });
+		}
 	}
 
 	async uploadFile(file) {

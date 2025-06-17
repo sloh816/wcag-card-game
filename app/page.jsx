@@ -27,6 +27,11 @@ const HomePage = ({}) => {
 			description: "Process an InDesign HTML file to copy into a Word document."
 		},
 		{
+			title: "Word to HTML",
+			description: "Generate a HTML from a Word document.",
+			link: "/word-to-html"
+		},
+		{
 			title: "PDF Strip tables",
 			description: "Strip the <Table> tags from the PDF tags. Useful for doing Easy Read FA."
 		},
@@ -39,10 +44,7 @@ const HomePage = ({}) => {
 			title: "Easy Read HTML Builder",
 			description: "Generate an Easy Read HTML from a Word or InDesign document."
 		},
-		{
-			title: "Word to HTML",
-			description: "Generate a HTML from a Word document."
-		},
+
 		{
 			title: "Web Audit Report Generator",
 			description:

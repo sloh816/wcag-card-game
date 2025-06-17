@@ -1,7 +1,7 @@
 const fileSystem = require("../utils/fileSystem");
 const cheerio = require("cheerio");
 const { slugify } = require("../utils/strings");
-const { text } = require("body-parser");
+const convertTocToNestedList = require("../utils/convertTocToNestedList");
 
 class Html {
 	constructor(file, folder, content = null, imagesFolder = null, cssFile = null) {
@@ -106,12 +106,21 @@ class Html {
 	}
 
 	async cleanUpWordToHtml() {
-		const $ = cheerio.load(this.content);
+		let $ = cheerio.load(this.content);
 
 		// Select all <a> tags with an id that starts with '_' and move the id to their parent tag
 		$("a[id^=_]").each((_, element) => {
 			const id = $(element).attr("id");
-			$(element).parent().attr("id", id); // Move the id to its parent tag
+
+			// check if parent has an id that starts with '_'
+			const parentId = $(element).parent().attr("id");
+			if (parentId && parentId.startsWith("_")) {
+				// change the href to the id of the parent
+				$(`[href="#${id}"]`).attr("href", "#" + parentId);
+			} else {
+				$(element).parent().attr("id", id); // Move the id to its parent tag
+			}
+
 			$(element).remove();
 		});
 
@@ -119,9 +128,15 @@ class Html {
 		$("[id^=_]").each((index, element) => {
 			const currentId = $(element).attr("id");
 			const cleanId = index + "_" + slugify($(element).text().trim());
-			$(`[href*=#${currentId}]`).attr("href", `#${cleanId}`);
+			$(`[href*=#${currentId}]`).each((_, link) => {
+				$(link).attr("href", `#${cleanId}`); // Update href attributes
+			});
 			$(element).attr("id", cleanId);
 		});
+
+		// Convert TOC to nested list
+		const convertedToc = convertTocToNestedList($.html());
+		$ = cheerio.load(convertedToc);
 
 		// Remove page numbers from toc
 		$("[class^=toc-]").each((_, element) => {
@@ -181,7 +196,7 @@ class Html {
 		});
 
 		// remove empty elements
-		$("*:empty:not(img, br)").remove();
+		$("*:empty:not(img, br, th, td)").remove();
 
 		this.content = $("body").html();
 	}

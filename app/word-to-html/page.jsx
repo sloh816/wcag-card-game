@@ -63,8 +63,12 @@ const Page = ({}) => {
 				setDownloadLink(response.data.downloadPath);
 			}
 		} catch (error) {
-			console.error("Error uploading file:", error);
-			setErrorMessage("An error occurred while uploading the file.");
+			console.log("Error uploading file:", error);
+			if (error.response && error.response.data) {
+				setErrorMessage(error.response.data.error);
+			} else {
+				setErrorMessage("An error occurred while uploading the file.");
+			}
 			setIsConverting(false);
 		}
 	};

@@ -4,6 +4,7 @@ const { slugify, repeatString } = require("../utils/strings");
 const mammoth = require("mammoth");
 const xml2js = require("xml2js");
 const Html = require("./Html");
+const cheerio = require("cheerio");
 
 class WordDocument {
 	constructor(filePath) {
@@ -78,9 +79,10 @@ class WordDocument {
 			const isBulletStyle = this.isBullet(id, numberingObject);
 			if (isBulletStyle) {
 				if (isBulletStyle["bulletType"] !== "bullet") {
-					tag = repeatString("ol > li", isBulletStyle["level"]);
+					tag = repeatString("ol > li", isBulletStyle["level"], " > ");
 				} else {
-					tag = repeatString("ul > li", isBulletStyle["level"]);
+					tag = repeatString("ul > li", isBulletStyle["level"], " > ");
+					// console.log({ className, tag, isBulletStyle });
 				}
 			}
 
@@ -94,11 +96,16 @@ class WordDocument {
 				}
 			}
 
-			// if the style is based on a heading, set the tag to h1, h2, etc.
+			// if the style is based on a built-in heading, set the tag to h1, h2, etc.
 			const basedOn = style["w:basedOn"]?.[0]?.["$"]["w:val"];
-			if (basedOn && basedOn.startsWith("Heading")) {
-				const headingLevel = parseInt(basedOn.replace("Heading", ""));
-				tag = "h" + headingLevel;
+			if (basedOn && !tag.startsWith("h")) {
+				const isBasedOnHeading = basedOn.startsWith("Heading") || basedOn === "TOCHeading";
+
+				if (isBasedOnHeading) {
+					const headingLevel =
+						basedOn !== "TOCHeading" ? parseInt(basedOn.replace("Heading", "")) : 2;
+					tag = "h" + headingLevel;
+				}
 			}
 
 			if (name === "TOC Heading") {
@@ -139,6 +146,29 @@ class WordDocument {
 		return styleMap;
 	}
 
+	async checkImagesInline() {
+		if (!this.unzippedFolder) {
+			await this.unzip();
+		}
+
+		// read the document.xml file from the unzipped Word document
+		const documentXmlPath = this.unzippedFolder + "/word/document.xml";
+		const documentXml = await fileSystem.readFile(documentXmlPath);
+		const $ = cheerio.load(documentXml);
+
+		$("w\\:drawing").each((_, element) => {
+			const inlineElement = $(element).find("wp\\:inline");
+
+			if (inlineElement.length === 0) {
+				const isDecorative = $(element).find("adec\\:decorative").length > 0;
+
+				if (!isDecorative) {
+					throw new Error("🖼️ There is at least 1 image that is not inline with text.");
+				}
+			}
+		});
+	}
+
 	// takes a styleId and the numberingXml object as input, and returns the bullet level if the style is a bullet/number list style
 	isBullet(styleId, numberingObject) {
 		for (const abstractNum of numberingObject["w:numbering"]["w:abstractNum"]) {
@@ -162,6 +192,9 @@ class WordDocument {
 		const outputFolder = await fileSystem.createFolder(
 			"server/lib/html/" + this.filePath.split("/").pop().replace(".docx", "") + "_html"
 		);
+
+		// TODO: Check if there are images not inline with text
+		await this.checkImagesInline();
 
 		// generate a style map from the unzipped Word document
 		const styleMap = await this.generateStyleMap();
