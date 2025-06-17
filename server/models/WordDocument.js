@@ -5,6 +5,7 @@ const mammoth = require("mammoth");
 const xml2js = require("xml2js");
 const Html = require("./Html");
 const cheerio = require("cheerio");
+const fs = require("fs");
 
 class WordDocument {
 	constructor(filePath) {
@@ -145,27 +146,49 @@ class WordDocument {
 		return styleMap;
 	}
 
-	async checkImagesInline() {
+	async getImageSizes() {
 		if (!this.unzippedFolder) {
 			await this.unzip();
 		}
 
 		// read the document.xml file from the unzipped Word document
 		const documentXmlPath = this.unzippedFolder + "/word/document.xml";
-		const documentXml = await fileSystem.readFile(documentXmlPath);
-		const $ = cheerio.load(documentXml);
+		const xmlContent = fs.readFileSync(documentXmlPath, "utf-8");
+		const parser = new xml2js.Parser({ explicitArray: false });
+		const doc = await parser.parseStringPromise(xmlContent);
 
-		$("w\\:drawing").each((_, element) => {
-			const inlineElement = $(element).find("wp\\:inline");
+		const drawings = [];
+		const EMU_PER_PIXEL = 9025;
 
-			if (inlineElement.length === 0) {
-				const isDecorative = $(element).find("adec\\:decorative").length > 0;
+		// Recursively search for drawings
+		const traverse = (node) => {
+			if (!node || typeof node !== "object") return;
 
-				if (!isDecorative) {
-					throw new Error("🖼️ There is at least 1 image that is not inline with text.");
+			for (const key in node) {
+				const child = node[key];
+
+				if (key === "w:drawing") {
+					const drawing = child["wp:inline"];
+
+					const extent = drawing?.["wp:extent"]?.$;
+					if (extent) {
+						const cx = parseInt(extent.cx, 10);
+						const cy = parseInt(extent.cy, 10);
+
+						drawings.push({
+							width: Math.round(cx / EMU_PER_PIXEL),
+							height: Math.round(cy / EMU_PER_PIXEL)
+						});
+					}
+				} else {
+					traverse(child);
 				}
 			}
-		});
+		};
+
+		traverse(doc);
+
+		return drawings;
 	}
 
 	// takes a styleId and the numberingXml object as input, and returns the bullet level if the style is a bullet/number list style
@@ -192,8 +215,8 @@ class WordDocument {
 			"server/lib/html/" + this.filePath.split("/").pop().replace(".docx", "") + "_html"
 		);
 
-		// TODO: Check if there are images not inline with text
-		await this.checkImagesInline();
+		// get image sizs of the images that are Inline with text
+		const imageSizes = await this.getImageSizes();
 
 		// generate a style map from the unzipped Word document
 		const styleMap = await this.generateStyleMap();
@@ -211,7 +234,7 @@ class WordDocument {
 		);
 
 		const html = new Html("index.html", outputFolder, htmlContent, "images");
-		html.cleanUpWordToHtml();
+		await html.cleanUpWordToHtml(imageSizes);
 
 		// write the HTML content to a file
 		await html.writeFile();

@@ -105,8 +105,17 @@ class Html {
 		return file;
 	}
 
-	async cleanUpWordToHtml() {
+	async cleanUpWordToHtml(imageSizes) {
 		let $ = cheerio.load(this.content);
+
+		// add width and heights to images
+		$("img").each((index, img) => {
+			const imageSize = imageSizes[index];
+			if (imageSize) {
+				$(img).attr("width", imageSize.width);
+				$(img).attr("height", imageSize.height);
+			}
+		});
 
 		// Select all <a> tags with an id that starts with '_' and move the id to their parent tag
 		$("a[id^=_]").each((_, element) => {
