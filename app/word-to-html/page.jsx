@@ -54,6 +54,7 @@ const Page = ({}) => {
 			setIsConverting(true);
 			const formData = new FormData();
 			formData.append("file", file);
+			formData.append("includeTemplate", document.getElementById("template").checked);
 
 			const response = await api.wordToHtml(formData);
 
@@ -103,15 +104,15 @@ const Page = ({}) => {
 				/>
 
 				<div className="flex items-center my-4 gap-2">
-					<input type="checkbox" className="w-4 h-4" id="template" disabled />
-					<label htmlFor="template" className="text-charcoal-100">
+					<input type="checkbox" className="w-4 h-4 cursor-pointer" id="template" />
+					<label htmlFor="template" className="text-charcoal-100 cursor-pointer">
 						Include template code
 					</label>
 				</div>
 
 				<div className="flex items-center my-4 gap-2">
 					<input type="checkbox" className="w-4 h-4" id="generate-css" disabled />
-					<label htmlFor="generate-css" className="text-charcoal-100">
+					<label htmlFor="generate-css" className="text-slate-400">
 						Generate CSS
 					</label>
 				</div>

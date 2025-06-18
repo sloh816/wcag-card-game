@@ -3,8 +3,7 @@
         "dev": "next dev -p 4000",
         "start": "npx next dev -H 0.0.0.0 -p 4000",
         "dev:server": "nodemon server",
-        "server": "node server",
-        "clear": "node server/utils/clearTempFiles.js"
+        "server": "node server"
     },
     "dependencies": {
         "@directus/sdk": "^18.0.1",

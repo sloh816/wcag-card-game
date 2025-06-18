@@ -210,7 +210,7 @@ class WordDocument {
 		return false;
 	}
 
-	async convertToHtml() {
+	async convertToHtml(includeTemplate = false) {
 		// create a folder in the downloads directory
 		const outputFolder = await fileSystem.createFolder(
 			"server/lib/html/" + this.filePath.split("/").pop().replace(".docx", "") + "_html"
@@ -236,6 +236,13 @@ class WordDocument {
 
 		const html = new Html("index.html", outputFolder, htmlContent, "images");
 		await html.cleanUpWordToHtml(imageSizes);
+
+		// if includeTemplate is true, add the HTML to the template
+		if (includeTemplate) {
+			const templatePath = "server/templates/word-to-html.html";
+			const templateContent = await fileSystem.readFile(templatePath);
+			html.content = templateContent.replace("{content}", html.content);
+		}
 
 		// write the HTML content to a file
 		await html.writeFile();

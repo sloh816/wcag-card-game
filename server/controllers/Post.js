@@ -59,10 +59,12 @@ class PostController {
 		const uploadedWordDoc = await this.uploadFile(file);
 
 		try {
+			const includeTemplate = req.body.includeTemplate === "true";
+
 			// convert the Word document to HTML
 			const filePath = uploadedWordDoc.folder + "/" + uploadedWordDoc.file;
 			const wordDocument = new WordDocument(filePath);
-			const html = await wordDocument.convertToHtml();
+			const html = await wordDocument.convertToHtml(includeTemplate);
 			const outputZipFile = await html.zip();
 			const zipFileName = outputZipFile.split("/").pop();
 

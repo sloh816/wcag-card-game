@@ -148,11 +148,10 @@ class Html {
 		$ = cheerio.load(convertedToc);
 
 		// Remove page numbers from toc
-		$("[class^=toc-]").each((_, element) => {
+		$("[class^=toc-] a").each((_, element) => {
 			const text = $(element).text();
-			const cleanText = text.replace(/\s*\d+$/, "").trim(); // Remove trailing numbers
-			const currentHtml = $(element).html();
-			$(element).html(currentHtml.replace(text, cleanText));
+			const cleanText = text.replace(/[\s\t]*\d+\s*$/, "");
+			$(element).text(cleanText);
 		});
 
 		// unwrap <img> tags from <p> tags
