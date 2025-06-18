@@ -5,6 +5,7 @@ const bodyParser = require("body-parser");
 const PostController = require("./controllers/Post");
 const ServeController = require("./controllers/Serve");
 const GetController = require("./controllers/Get");
+const DeleteController = require("./controllers/Delete");
 
 class Server {
 	constructor(port) {
@@ -26,10 +27,7 @@ class Server {
 			new PostController(this.app);
 			new GetController(this.app);
 			new ServeController(this.app);
-
-			this.app.get("/", (req, res) => {
-				res.send("Hello from root!");
-			});
+			new DeleteController(this.app);
 		} catch (error) {
 			console.error("Error loading routes:", error);
 		}

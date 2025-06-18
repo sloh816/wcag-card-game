@@ -134,6 +134,30 @@ const fileSystem = {
 			console.error("❌📂 Error zipping folder:", err);
 			throw error;
 		}
+	},
+
+	getSubFilesAndFolders: async (folderPath) => {
+		try {
+			// Check if the folder exists
+			if (!fs.existsSync(folderPath)) {
+				console.log("❌📂 Folder does not exist:", folderPath);
+				return [];
+			}
+
+			// Read all files and subdirectories in the folder
+			const items = await fsp.readdir(folderPath, { withFileTypes: true });
+			const subFilesAndFolders = [];
+
+			// Loop through each item
+			for (const item of items) {
+				subFilesAndFolders.push(item.name);
+			}
+
+			return subFilesAndFolders;
+		} catch (error) {
+			console.error("❌📂 Error getting subfiles and folders:", error);
+			throw error;
+		}
 	}
 };
 

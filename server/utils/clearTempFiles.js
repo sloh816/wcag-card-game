@@ -3,7 +3,33 @@ const path = require("path");
 const readline = require("readline");
 const fileSystem = require("./fileSystem");
 
-function clearTempFiles(folders) {
+async function clearLibFiles(folders) {
+	for (const folder of folders) {
+		const folderPath = path.join(__dirname, "../lib/" + folder);
+		console.log(`Clearing folder: ${folderPath}`);
+
+		try {
+			const files = await fs.readdir(folderPath);
+
+			for (const file of files) {
+				const filePath = path.join(folderPath, file);
+				const stat = await fs.stat(filePath);
+
+				if (stat.isDirectory()) {
+					// Recursively delete the subdirectory
+					await fileSystem.deleteFolder(filePath);
+				} else {
+					// Delete the file
+					await fileSystem.deleteFile(filePath);
+				}
+			}
+		} catch (err) {
+			console.error(`❌ Error reading folder: ${folderPath}`, err);
+		}
+	}
+}
+
+function clearLibFilesWithTerminal(folders) {
 	// ask user for confirmation
 
 	const rl = readline.createInterface({
@@ -19,29 +45,7 @@ function clearTempFiles(folders) {
 			if (answer.toLowerCase() !== "y") {
 				console.log("❌ Operation cancelled.");
 			} else {
-				for (const folder of folders) {
-					const folderPath = path.join(__dirname, "..", folder);
-
-					try {
-						const files = await fs.readdir(folderPath);
-
-						for (const file of files) {
-							const filePath = path.join(folderPath, file);
-							const stat = await fs.stat(filePath);
-
-							if (stat.isDirectory()) {
-								// Recursively delete the subdirectory
-								await fileSystem.deleteFolder(filePath);
-							} else {
-								// Delete the file
-								await fileSystem.deleteFile(filePath);
-							}
-						}
-					} catch (err) {
-						console.error(`❌ Error reading folder: ${folderPath}`, err);
-					}
-				}
-
+				await clearLibFiles(folders);
 				console.log("✅ Deletion completed.");
 			}
 			rl.close();
@@ -49,4 +53,4 @@ function clearTempFiles(folders) {
 	);
 }
 
-clearTempFiles(["lib/downloads", "lib/uploads", "lib/unzippedWordDocs", "lib/html"]);
+module.exports = clearLibFiles;
