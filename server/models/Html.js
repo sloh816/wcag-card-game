@@ -2,6 +2,7 @@ const fileSystem = require("../utils/fileSystem");
 const cheerio = require("cheerio");
 const { slugify } = require("../utils/strings");
 const convertTocToNestedList = require("../utils/convertTocToNestedList");
+const { generateImageId } = require("../utils/writeImageFiles");
 
 class Html {
 	constructor(file, folder, content = null, imagesFolder = null, cssFile = null) {
@@ -108,8 +109,30 @@ class Html {
 	async cleanUpWordToHtml(imageSizes) {
 		let $ = cheerio.load(this.content);
 
-		// add width and heights to images
-		$("img").each((index, img) => {
+		const imagesInTables = [];
+		$("img").each((_, img) => {
+			// check if image is a child of a table
+			const isInTable = $(img).parents("table").length > 0;
+			const alt = $(img).attr("alt") || "";
+
+			if (!isInTable) {
+				// apply the width and height from the imageSizes object
+				const imageSize = imageSizes[0];
+				if (imageSize) {
+					$(img).attr("width", imageSize.width);
+					$(img).attr("height", imageSize.height);
+				}
+
+				// remove the first item from imageSizes
+				imageSizes.shift();
+			} else {
+				// put the element in another array
+				imagesInTables.push(img);
+			}
+		});
+
+		// Set the width and height for images in tables with the remaining imageSizes
+		imagesInTables.forEach((img, index) => {
 			const imageSize = imageSizes[index];
 			if (imageSize) {
 				$(img).attr("width", imageSize.width);

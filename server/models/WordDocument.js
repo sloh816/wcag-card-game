@@ -170,6 +170,7 @@ class WordDocument {
 
 				if (key === "w:drawing") {
 					const drawing = child["wp:inline"];
+					const descr = drawing?.["wp:docPr"]?.$?.descr || "";
 
 					const extent = drawing?.["wp:extent"]?.$;
 					if (extent) {
@@ -178,7 +179,8 @@ class WordDocument {
 
 						drawings.push({
 							width: Math.round(cx / EMU_PER_PIXEL),
-							height: Math.round(cy / EMU_PER_PIXEL)
+							height: Math.round(cy / EMU_PER_PIXEL),
+							descr
 						});
 					}
 				} else {

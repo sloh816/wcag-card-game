@@ -7,16 +7,23 @@ async function writeImageFiles(folderPath, folderName) {
 
 	let imageCounter = 0;
 	return mammoth.images.imgElement(async (image) => {
-		const buffer = await image.read();
-		const ext = image.contentType.split("/").pop();
+		try {
+			const buffer = await image.read();
+			const ext = image.contentType.split("/").pop();
 
-		const fileName = `image-${imageCounter}.${ext}`;
-		const filePath = `${imageFolderPath}/${fileName}`;
+			const fileName = `image-${imageCounter}.${ext}`;
+			const filePath = `${imageFolderPath}/${fileName}`;
 
-		await fileSystem.writeFile(filePath, buffer);
+			await fileSystem.writeFile(filePath, buffer);
 
-		imageCounter++;
-		return { src: `${folderName}/${fileName}` };
+			imageCounter++;
+			return {
+				src: `${folderName}/${fileName}`
+			};
+		} catch (error) {
+			console.error("Error writing image file:", error);
+			throw new Error("Failed to write image file");
+		}
 	});
 }
 
