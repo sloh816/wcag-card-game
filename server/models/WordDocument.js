@@ -212,7 +212,7 @@ class WordDocument {
 		return false;
 	}
 
-	async convertToHtml(includeTemplate = false) {
+	async convertToHtml(includeTemplate = false, templateData = {}) {
 		// create a folder in the downloads directory
 		const outputFolder = await fileSystem.createFolder(
 			"server/lib/html/" + this.filePath.split("/").pop().replace(".docx", "") + "_html"
@@ -240,10 +240,41 @@ class WordDocument {
 		await html.cleanUpWordToHtml(imageSizes);
 
 		// if includeTemplate is true, add the HTML to the template
+		let additionalHeaders = "</head>";
+
 		if (includeTemplate) {
 			const templatePath = "server/templates/word-to-html.html";
 			const templateContent = await fileSystem.readFile(templatePath);
-			html.content = templateContent.replace("{content}", html.content);
+			const documentTitle = templateData.documentTitle || "";
+			const favicon = templateData.favicon || null;
+
+			if (favicon) {
+				// copy the favicon to the html folder
+				const ext = favicon.file.split(".").pop();
+				const faviconFileName = "favicon." + ext;
+
+				// move the favicon to the output folder
+				await fileSystem.moveFile(
+					favicon.folder + "/" + favicon.file,
+					outputFolder + "/" + faviconFileName
+				);
+
+				// favicon link
+				const faviconTypes = {
+					png: "image/png",
+					jpeg: "image/jpeg",
+					jpg: "image/jpeg",
+					ico: "image/x-icon"
+				};
+				const faviconLink = `<link rel="icon" href="${faviconFileName}" type="${faviconTypes[ext]}">`;
+
+				additionalHeaders = faviconLink + additionalHeaders;
+			}
+
+			html.content = templateContent
+				.replace("{title}", documentTitle)
+				.replace("</head>", additionalHeaders)
+				.replace("{content}", html.content);
 		}
 
 		// write the HTML content to a file

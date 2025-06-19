@@ -24,7 +24,12 @@ class PostController {
 
 	routes() {
 		this.router.post("/prepend-styles", upload.single("file"), this.prependStyles.bind(this));
-		this.router.post("/word-to-html", upload.single("file"), this.wordToHtml.bind(this));
+
+		this.router.post(
+			"/word-to-html",
+			upload.fields([{ name: "file" }, { name: "favicon" }]),
+			this.wordToHtml.bind(this)
+		);
 	}
 
 	async prependStyles(req, res) {
@@ -50,13 +55,14 @@ class PostController {
 
 	async wordToHtml(req, res) {
 		// check if there's a file
-		const file = req.file;
-		if (!file) {
-			return res.status(400).json({ error: "No file uploaded" });
+		const files = req.files;
+		if (!files) {
+			return res.status(400).json({ error: "No files uploaded" });
 		}
 
-		// rename the uploaded file
-		const uploadedWordDoc = await this.uploadFile(file);
+		// rename the uploaded files
+		const uploadedWordDoc = await this.uploadFile(files.file[0]);
+		const uploadedFavion = files.favicon ? await this.uploadFile(files.favicon[0]) : null;
 
 		try {
 			const includeTemplate = req.body.includeTemplate === "true";
@@ -64,7 +70,10 @@ class PostController {
 			// convert the Word document to HTML
 			const filePath = uploadedWordDoc.folder + "/" + uploadedWordDoc.file;
 			const wordDocument = new WordDocument(filePath);
-			const html = await wordDocument.convertToHtml(includeTemplate);
+			const html = await wordDocument.convertToHtml(includeTemplate, {
+				documentTitle: req.body.documentTitle,
+				favicon: uploadedFavion
+			});
 			const outputZipFile = await html.zip();
 			const zipFileName = outputZipFile.split("/").pop();
 

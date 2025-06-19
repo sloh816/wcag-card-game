@@ -117,6 +117,21 @@ const fileSystem = {
 		}
 	},
 
+	moveFile: async (source, destination) => {
+		try {
+			// copy the file to the new location
+			await fsp.copyFile(source, destination);
+
+			// delete the original file
+			await fsp.unlink(source);
+
+			console.log("✅📂 File moved from", source, "to", destination);
+		} catch (error) {
+			console.error("❌📂 Error moving file:", error);
+			throw error;
+		}
+	},
+
 	zipFolder: async (folder, outputFilePath) => {
 		try {
 			const zip = new AdmZip();

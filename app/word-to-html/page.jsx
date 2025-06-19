@@ -11,8 +11,14 @@ const Page = ({}) => {
 	const [successMessage, setSuccessMessage] = useState(null);
 	const [downloadLink, setDownloadLink] = useState(null);
 	const [isConverting, setIsConverting] = useState(false);
+	const [showDocumentOptions, setShowDocumentOptions] = useState(false);
+	const [favicon, setFavicon] = useState(null);
+
 	const wordDocumentType =
 		"application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+	// image types for favicon - png, jpeg, ico
+	const faviconTypes = ["image/png", "image/jpeg", "image/x-icon"];
 
 	useEffect(() => {
 		document.title = "Word to HTML";
@@ -21,17 +27,15 @@ const Page = ({}) => {
 	const handleFileChange = (event) => {
 		setErrorMessage(null);
 		setSuccessMessage(null);
-		setFile(null);
 
 		const selectedFile = event.target.files[0];
 
-		if (selectedFile) {
-			if (selectedFile.type !== wordDocumentType) {
-				setErrorMessage("Please upload a valid Word document (.docx)");
-				return;
-			}
+		const inputId = event.target.id;
 
+		if (inputId === "file") {
 			setFile(selectedFile);
+		} else if (inputId === "favicon") {
+			setFavicon(selectedFile);
 		}
 	};
 
@@ -51,11 +55,35 @@ const Page = ({}) => {
 		}
 
 		try {
-			setIsConverting(true);
 			const formData = new FormData();
 			formData.append("file", file);
-			formData.append("includeTemplate", document.getElementById("template").checked);
 
+			const includeTemplate = document.getElementById("template").checked;
+			formData.append("includeTemplate", includeTemplate);
+
+			if (includeTemplate) {
+				const documentTitle = document.getElementById("document-title").value;
+
+				if (!documentTitle) {
+					setErrorMessage("Please input a document title");
+					return;
+				}
+
+				if (!favicon) {
+					setErrorMessage("Please upload a favicon");
+					return;
+				}
+
+				if (!faviconTypes.includes(favicon.type)) {
+					setErrorMessage("Please upload a valid favicon (png, jpeg, ico)");
+					return;
+				}
+
+				formData.append("documentTitle", documentTitle);
+				formData.append("favicon", favicon);
+			}
+
+			setIsConverting(true);
 			const response = await api.wordToHtml(formData);
 
 			if (response.status === 200) {
@@ -101,14 +129,52 @@ const Page = ({}) => {
 					accept=".docx"
 					className="border-dashed border-navy-100 border-2 p-8 w-full rounded-lg bg-slate-100 mt-4 cursor-pointer hover:bg-navy-20 transition-all"
 					onChange={handleFileChange}
+					id="file"
 				/>
 
 				<div className="flex items-center my-4 gap-2">
-					<input type="checkbox" className="w-4 h-4 cursor-pointer" id="template" />
+					<input
+						type="checkbox"
+						className="w-4 h-4 cursor-pointer"
+						id="template"
+						onChange={() => setShowDocumentOptions(!showDocumentOptions)}
+					/>
 					<label htmlFor="template" className="text-charcoal-100 cursor-pointer">
 						Include template code
 					</label>
 				</div>
+
+				{showDocumentOptions && (
+					<div className="ml-8 mb-8 grid grid-cols-2 gap-8">
+						<div className="flex flex-col gap-1">
+							<label
+								htmlFor="document-title"
+								className="text-charcoal-100 cursor-pointer text-sm"
+							>
+								Document title
+							</label>
+							<input
+								type="text"
+								id="document-title"
+								className="border border-slate-500 rounded-md px-2 py-1 w-full"
+							/>
+						</div>
+						<div className="flex flex-col gap-1">
+							<label
+								htmlFor="document-title"
+								className="text-charcoal-100 cursor-pointer text-sm shrink-0"
+							>
+								Favicon
+							</label>
+							<input
+								type="file"
+								className="border-dashed border-navy-100 border p-4 w-full rounded-lg bg-slate-100 cursor-pointer hover:bg-navy-20 transition-all text-sm"
+								id="favicon"
+								onChange={handleFileChange}
+							/>
+						</div>
+					</div>
+				)}
 
 				<div className="flex items-center my-4 gap-2">
 					<input type="checkbox" className="w-4 h-4" id="generate-css" disabled />

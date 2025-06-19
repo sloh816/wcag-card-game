@@ -2,7 +2,6 @@ const fileSystem = require("../utils/fileSystem");
 const cheerio = require("cheerio");
 const { slugify } = require("../utils/strings");
 const convertTocToNestedList = require("../utils/convertTocToNestedList");
-const { generateImageId } = require("../utils/writeImageFiles");
 
 class Html {
 	constructor(file, folder, content = null, imagesFolder = null, cssFile = null) {
@@ -113,7 +112,6 @@ class Html {
 		$("img").each((_, img) => {
 			// check if image is a child of a table
 			const isInTable = $(img).parents("table").length > 0;
-			const alt = $(img).attr("alt") || "";
 
 			if (!isInTable) {
 				// apply the width and height from the imageSizes object
