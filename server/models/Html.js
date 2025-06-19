@@ -108,9 +108,9 @@ class Html {
 	async cleanUpWordToHtml(imageSizes) {
 		let $ = cheerio.load(this.content);
 
+		// check if images are a child of a table
 		const imagesInTables = [];
 		$("img").each((_, img) => {
-			// check if image is a child of a table
 			const isInTable = $(img).parents("table").length > 0;
 
 			if (!isInTable) {
@@ -188,7 +188,7 @@ class Html {
 		// wrap the endnotes list in a 'section' tag and add a 'Endnotes' heading
 		$("ol:has(li[id*=footnote])").each((_, ol) => {
 			$(ol).wrap('<section id="endnotes"></section>');
-			$(ol).prepend("<h2>Endnotes</h2>");
+			$(ol).before('<h2 class="heading-2">Endnotes</h2>');
 		});
 
 		//  if table class includes "callout" or "layout", convert to div

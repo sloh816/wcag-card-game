@@ -280,6 +280,8 @@ class WordDocument {
 		// write the HTML content to a file
 		await html.writeFile();
 
+		console.log("☑️ Word document converted to HTML");
+
 		return html;
 	}
 }
