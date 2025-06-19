@@ -98,6 +98,9 @@ const WordToHtmlPage = () => {
 				formData.append("favicon", favicon);
 			}
 
+			const generateCss = document.getElementById("generate-css").checked;
+			formData.append("generateCss", generateCss);
+
 			setIsConverting(true);
 			const response = await api.wordToHtml(formData);
 
@@ -148,7 +151,7 @@ const WordToHtmlPage = () => {
 	);
 
 	const renderTemplateCheckbox = () => (
-		<div className="flex items-center my-4 gap-2">
+		<div className="flex items-center mb-4 gap-2">
 			<input
 				type="checkbox"
 				className="w-4 h-4 cursor-pointer"
@@ -231,8 +234,8 @@ const WordToHtmlPage = () => {
 				{renderDocumentOptions()}
 
 				<div className="flex items-center my-4 gap-2">
-					<input type="checkbox" className="w-4 h-4" id="generate-css" disabled />
-					<label htmlFor="generate-css" className="text-slate-400">
+					<input type="checkbox" className="w-4 h-4" id="generate-css" />
+					<label htmlFor="generate-css" className="text-charcoal-100 cursor-pointer">
 						Generate CSS
 					</label>
 				</div>

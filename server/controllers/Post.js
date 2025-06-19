@@ -66,14 +66,19 @@ class PostController {
 
 		try {
 			const includeTemplate = req.body.includeTemplate === "true";
+			const generateCss = req.body.generateCss === "true";
 
 			// convert the Word document to HTML
 			const filePath = uploadedWordDoc.folder + "/" + uploadedWordDoc.file;
 			const wordDocument = new WordDocument(filePath);
-			const html = await wordDocument.convertToHtml(includeTemplate, {
-				documentTitle: req.body.documentTitle,
-				favicon: uploadedFavion
-			});
+			const html = await wordDocument.convertToHtml(
+				includeTemplate,
+				{
+					documentTitle: req.body.documentTitle,
+					favicon: uploadedFavion
+				},
+				generateCss
+			);
 			const outputZipFile = await html.zip();
 			const zipFileName = outputZipFile.split("/").pop();
 

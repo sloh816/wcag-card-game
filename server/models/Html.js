@@ -241,6 +241,19 @@ class Html {
 		await fileSystem.zipFolder(this.folder, outputZipPath);
 		return outputZipPath;
 	}
+
+	async writeCssFile(cssContent, fileName) {
+		const cssFilePath = `${this.folder}/${fileName}`;
+		await fileSystem.writeFile(cssFilePath, cssContent);
+		this.cssFile = cssFilePath;
+
+		if (this.content) {
+			const $ = cheerio.load(this.content);
+			$("head").append(`<link rel="stylesheet" href="${fileName}">`);
+			this.content = $.html();
+			await this.writeFile();
+		}
+	}
 }
 
 module.exports = Html;
