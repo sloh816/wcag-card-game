@@ -7,7 +7,6 @@ const Html = require("./Html");
 const fs = require("fs");
 const cheerio = require("cheerio");
 const emuToPx = require("../utils/emuToPx");
-const { Block } = require("@mui/icons-material");
 
 class WordDocument {
 	constructor(filePath) {
