@@ -233,6 +233,9 @@ class Html {
 		// remove empty elements
 		$("*:empty:not(img, br, th, td)").remove();
 
+		// clear spacer elements
+		$("div.spacer").text("");
+
 		this.content = $("body").html();
 	}
 

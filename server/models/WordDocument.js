@@ -113,6 +113,10 @@ class WordDocument {
 				tag = "h2";
 			}
 
+			if (className === ".spacer") {
+				tag = "div";
+			}
+
 			// If the style is a character style, set the tag to span, em, or strong
 			if (type === "r") {
 				fresh = "";
@@ -357,23 +361,6 @@ class WordDocument {
 	getCssFromStyleData(style) {
 		const css = {};
 
-		// font size
-		const fontSize = style["w:rPr"]?.[0]?.["w:sz"]?.[0]?.["$"]["w:val"];
-		if (fontSize) {
-			const fontSizePx = Math.round((fontSize / 2) * 1.33) + 1 + "px";
-			css["font-size"] = fontSizePx;
-		}
-
-		// colour
-		const colour = style["w:rPr"]?.[0]?.["w:color"]?.[0]?.["$"]["w:val"];
-		if (colour) {
-			if (colour === "auto") {
-				css["color"] = "inherit"; // Use inherit for auto color
-			} else {
-				css["color"] = `#${colour}`;
-			}
-		}
-
 		// margin and padding
 		const spacingBefore = style["w:pPr"]?.[0]?.["w:spacing"]?.[0]?.["$"]["w:before"];
 		if (spacingBefore) {
@@ -391,6 +378,23 @@ class WordDocument {
 		if (leftIndent) {
 			const leftIndentPx = Math.round((leftIndent / 20) * 1.33) + "px";
 			css["margin-left"] = leftIndentPx;
+		}
+
+		// font size
+		const fontSize = style["w:rPr"]?.[0]?.["w:sz"]?.[0]?.["$"]["w:val"];
+		if (fontSize) {
+			const fontSizePx = Math.round((fontSize / 2) * 1.33) + 1 + "px";
+			css["font-size"] = fontSizePx;
+		}
+
+		// colour
+		const colour = style["w:rPr"]?.[0]?.["w:color"]?.[0]?.["$"]["w:val"];
+		if (colour) {
+			if (colour === "auto") {
+				css["color"] = "inherit"; // Use inherit for auto color
+			} else {
+				css["color"] = `#${colour}`;
+			}
 		}
 
 		// underline
@@ -492,6 +496,23 @@ class WordDocument {
 					});
 
 					return;
+				}
+
+				if (className === "spacer") {
+					const marginTop = css["margin-top"].replace("px", "") || 0;
+					const marginBottom = css["margin-bottom"].replace("px", "") || 0;
+					const fontSize = css["font-size"].replace("px", "") || 0;
+
+					const height =
+						parseInt(marginTop) + parseInt(marginBottom) + parseInt(fontSize);
+
+					delete css["margin-top"];
+					delete css["margin-bottom"];
+					delete css["font-size"];
+					delete css["color"];
+
+					css["height"] = height + "px";
+					css["width"] = "100%";
 				}
 
 				// if css object is not empty...
