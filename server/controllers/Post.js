@@ -71,6 +71,7 @@ class PostController {
 			// convert the Word document to HTML
 			const filePath = uploadedWordDoc.folder + "/" + uploadedWordDoc.file;
 			const wordDocument = new WordDocument(filePath);
+
 			const html = await wordDocument.convertToHtml(
 				includeTemplate,
 				{
@@ -79,12 +80,22 @@ class PostController {
 				},
 				generateCss
 			);
+
+			let fontsFound = false;
+
+			if (generateCss) {
+				const fonts = await wordDocument.getFonts();
+				if (fonts && fonts.length > 0) {
+					fontsFound = { fonts };
+				}
+			}
+
 			const outputZipFile = await html.zip();
 			const zipFileName = outputZipFile.split("/").pop();
 
 			// get download path
 			const downloadPath = this.getDownloadPath(zipFileName);
-			res.json({ downloadPath });
+			res.json({ downloadPath, fontsFound, htmlFolder: html.folder });
 		} catch (error) {
 			res.status(500).json({ error: "Error processing Word document: " + error.message });
 		}

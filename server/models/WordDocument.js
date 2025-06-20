@@ -45,17 +45,10 @@ class WordDocument {
 		}
 
 		// read the styles.xml file from the unzipped Word document
-		const parser = new xml2js.Parser();
-		const stylesXmlPath = this.unzippedFolder + "/word/styles.xml";
-		const stylesXmlContent = await fileSystem.readFile(stylesXmlPath);
-		const stylesObject = await parser.parseStringPromise(stylesXmlContent);
+		const stylesXml = await this.readXmlFile(this.unzippedFolder + "/word/styles.xml");
+		const numberingXml = await this.readXmlFile(this.unzippedFolder + "/word/numbering.xml");
 
-		// read the numbering.xml file from the unzipped Word document
-		const numberingXmlPath = this.unzippedFolder + "/word/numbering.xml";
-		const numberingXmlContent = await fileSystem.readFile(numberingXmlPath);
-		const numberingObject = await parser.parseStringPromise(numberingXmlContent);
-
-		const styles = stylesObject["w:styles"]["w:style"];
+		const styles = stylesXml.object["w:styles"]["w:style"];
 
 		const styleMap = [];
 		for (const style of styles) {
@@ -78,7 +71,7 @@ class WordDocument {
 			let className = "." + slugify(name);
 
 			// Check if the style is a bullet or numbered list style
-			const isBulletStyle = this.isBullet(id, numberingObject);
+			const isBulletStyle = this.isBullet(id, numberingXml.object);
 			if (isBulletStyle) {
 				if (isBulletStyle["bulletType"] !== "bullet") {
 					tag = repeatString("ol > li", isBulletStyle["level"], " > ");
@@ -204,131 +197,164 @@ class WordDocument {
 			await this.unzip();
 		}
 
-		// read the styles.xml file from the unzipped Word document
-		const parser = new xml2js.Parser();
-		const stylesXmlPath = this.unzippedFolder + "/word/styles.xml";
-		const stylesXmlContent = await fileSystem.readFile(stylesXmlPath);
-		const stylesObject = await parser.parseStringPromise(stylesXmlContent);
+		try {
+			// read the styles.xml file from the unzipped Word document
+			const stylesXml = await this.readXmlFile(this.unzippedFolder + "/word/styles.xml");
+			const documentXml = await this.readXmlFile(this.unzippedFolder + "/word/document.xml");
+			const numberingXml = await this.readXmlFile(
+				this.unzippedFolder + "/word/numbering.xml"
+			);
 
-		// read the document.xml file from the unzipped Word document
-		const documentXmlPath = this.unzippedFolder + "/word/document.xml";
-		const documentXmlContent = await fileSystem.readFile(documentXmlPath);
+			// get all the character and paragraph styles from the document.xml file
+			const styleIdSet = new Set(["Normal"]); // add Normal style as default
+			const $ = cheerio.load(documentXml.content);
+			$("w\\:pStyle, w\\:rStyle").each((_, style) => {
+				let styleId = $(style).attr("w:val");
+				if (styleId) {
+					// check if it's a bullet
+					const isBullet = this.isBullet(styleId, numberingXml.object);
+					if (isBullet && isBullet.bulletType === "decimal") {
+						styleId += "---numberbullet";
+					}
 
-		// find numbering elements and get class
-		const numberingXmlPath = this.unzippedFolder + "/word/numbering.xml";
-		const numberingXmlContent = await fileSystem.readFile(numberingXmlPath);
-		const numberingObject = await parser.parseStringPromise(numberingXmlContent);
-
-		// get all the character and paragraph styles from the document.xml file
-		const styleIdSet = new Set(["Normal"]); // add Normal style as default
-		const $ = cheerio.load(documentXmlContent);
-		$("w\\:pStyle, w\\:rStyle").each((_, style) => {
-			let styleId = $(style).attr("w:val");
-			if (styleId) {
-				// check if it's a bullet
-				const isBullet = this.isBullet(styleId, numberingObject);
-				if (isBullet && isBullet.bulletType === "decimal") {
-					styleId += "---numberbullet";
+					styleIdSet.add(styleId);
 				}
+			});
+			const styleIds = Array.from(styleIdSet);
 
-				styleIdSet.add(styleId);
+			const stylesCss = this.generateCssObjects(styleIds, stylesXml.object);
+
+			// create a CSS string from the stylesCss array
+			const cssString = stylesCss
+				.map((style) => {
+					const cssString = Object.entries(style.css)
+						.map(([property, value]) => `${property}: ${value};`)
+						.join("\n\t");
+					return `${style.selector} {\n\t${cssString}\n}`;
+				})
+				.join("\n");
+
+			return cssString;
+		} catch (error) {
+			console.error("Error generating CSS:", error);
+		}
+	}
+
+	async getFonts() {
+		try {
+			if (!this.unzippedFolder) {
+				await this.unzip();
 			}
-		});
 
-		// convert sets to arrays and join them
-		const styleIds = Array.from(styleIdSet);
-		const stylesCss = this.generateCssObjects(styleIds, stylesObject);
+			const systemFontsFile = await fileSystem.readFile("server/utils/systemFonts.json");
+			const systemFonts = JSON.parse(systemFontsFile);
 
-		// create a CSS string from the stylesCss array
-		const cssString = stylesCss
-			.map((style) => {
-				const cssString = Object.entries(style.css)
-					.map(([property, value]) => `${property}: ${value};`)
-					.join("\n\t");
-				return `${style.selector} {\n\t${cssString}\n}`;
-			})
-			.join("\n");
+			// get the fonts used
+			const stylesXml = await this.readXmlFile(this.unzippedFolder + "/word/styles.xml");
 
-		return cssString;
+			const fontSet = new Set();
+			for (const style of stylesXml.object["w:styles"]["w:style"]) {
+				if (style["w:rPr"] && style["w:rPr"][0]["w:rFonts"]) {
+					const rFonts = style["w:rPr"][0]["w:rFonts"][0]["$"];
+
+					if (rFonts["w:ascii"]) {
+						if (!systemFonts.includes(rFonts["w:ascii"])) {
+							const isBold = style["w:rPr"][0]["w:b"] ? " Bold" : "";
+							const isItalic = style["w:rPr"][0]["w:i"] ? " Italic" : "";
+							const font = `${rFonts["w:ascii"]}${isBold}${isItalic}`.trim();
+							fontSet.add(font);
+						}
+					}
+				}
+			}
+
+			return Array.from(fontSet);
+		} catch (error) {
+			console.error("Error getting fonts:", error);
+		}
 	}
 
 	async convertToHtml(includeTemplate = false, templateData = {}, generateCss = false) {
-		// create a folder in the downloads directory
-		const outputFolder = await fileSystem.createFolder(
-			"server/lib/html/" + this.filePath.split("/").pop().replace(".docx", "") + "_html"
-		);
+		try {
+			// create a folder in the downloads directory
+			const outputFolder = await fileSystem.createFolder(
+				"server/lib/html/" + this.filePath.split("/").pop().replace(".docx", "") + "_html"
+			);
 
-		// get image sizs of the images that are Inline with text
-		const imageSizes = await this.getImageSizes();
+			// get image sizs of the images that are Inline with text
+			const imageSizes = await this.getImageSizes();
 
-		// generate a style map from the unzipped Word document
-		const styleMap = await this.generateStyleMap();
+			// generate a style map from the unzipped Word document
+			const styleMap = await this.generateStyleMap();
 
-		// configure mammoth options
-		const options = {
-			styleMap: styleMap,
-			convertImage: await writeImageFiles(outputFolder, "images")
-		};
+			// configure mammoth options
+			const options = {
+				styleMap: styleMap,
+				convertImage: await writeImageFiles(outputFolder, "images")
+			};
 
-		// convert the Word document to HTML
-		const { value: htmlContent } = await mammoth.convertToHtml(
-			{ path: this.filePath },
-			options
-		);
+			// convert the Word document to HTML
+			const { value: htmlContent } = await mammoth.convertToHtml(
+				{ path: this.filePath },
+				options
+			);
 
-		const html = new Html("index.html", outputFolder, htmlContent, "images");
-		await html.cleanUpWordToHtml(imageSizes);
+			const html = new Html("index.html", outputFolder, htmlContent, "images");
+			await html.cleanUpWordToHtml(imageSizes);
 
-		// if includeTemplate is true, add the HTML to the template
-		let additionalHeaders = "</head>";
+			// if includeTemplate is true, add the HTML to the template
+			let additionalHeaders = "</head>";
 
-		if (includeTemplate) {
-			const templatePath = "server/templates/word-to-html.html";
-			const templateContent = await fileSystem.readFile(templatePath);
-			const documentTitle = templateData.documentTitle || "";
-			const favicon = templateData.favicon || null;
+			if (includeTemplate) {
+				const templatePath = "server/templates/word-to-html.html";
+				const templateContent = await fileSystem.readFile(templatePath);
+				const documentTitle = templateData.documentTitle || "";
+				const favicon = templateData.favicon || null;
 
-			if (favicon) {
-				// copy the favicon to the html folder
-				const ext = favicon.file.split(".").pop();
-				const faviconFileName = "favicon." + ext;
+				if (favicon) {
+					// copy the favicon to the html folder
+					const ext = favicon.file.split(".").pop();
+					const faviconFileName = "favicon." + ext;
 
-				// move the favicon to the output folder
-				await fileSystem.moveFile(
-					favicon.folder + "/" + favicon.file,
-					outputFolder + "/" + faviconFileName
-				);
+					// move the favicon to the output folder
+					await fileSystem.moveFile(
+						favicon.folder + "/" + favicon.file,
+						outputFolder + "/" + faviconFileName
+					);
 
-				// favicon link
-				const faviconTypes = {
-					png: "image/png",
-					jpeg: "image/jpeg",
-					jpg: "image/jpeg",
-					ico: "image/x-icon"
-				};
-				const faviconLink = `<link rel="icon" href="${faviconFileName}" type="${faviconTypes[ext]}">`;
+					// favicon link
+					const faviconTypes = {
+						png: "image/png",
+						jpeg: "image/jpeg",
+						jpg: "image/jpeg",
+						ico: "image/x-icon"
+					};
+					const faviconLink = `<link rel="icon" href="${faviconFileName}" type="${faviconTypes[ext]}">`;
 
-				additionalHeaders = faviconLink + additionalHeaders;
+					additionalHeaders = faviconLink + additionalHeaders;
+				}
+
+				html.content = templateContent
+					.replace("{title}", documentTitle)
+					.replace("</head>", additionalHeaders)
+					.replace("{content}", html.content);
 			}
-
-			html.content = templateContent
-				.replace("{title}", documentTitle)
-				.replace("</head>", additionalHeaders)
-				.replace("{content}", html.content);
 
 			// write the HTML content to a file
 			await html.writeFile();
+
+			// generate CSS from the unzipped Word document
+			if (generateCss) {
+				const css = await this.generateCss();
+				await html.writeCssFile(css, "styles.css");
+			}
+
+			console.log("☑️ Word document converted to HTML");
+
+			return html;
+		} catch (error) {
+			console.error("Error converting Word document to HTML:", error);
 		}
-
-		// generate CSS from the unzipped Word document
-		if (generateCss) {
-			const css = await this.generateCss();
-			await html.writeCssFile(css, "styles.css");
-		}
-
-		console.log("☑️ Word document converted to HTML");
-
-		return html;
 	}
 
 	// #region helper functions
@@ -434,6 +460,12 @@ class WordDocument {
 				borderBottom["w:color"] !== "auto" ? `#${borderBottom["w:color"]}` : "black";
 
 			css["border-bottom"] = `${width} solid ${color}`;
+		}
+
+		// fonts
+		const fontFamily = style["w:rPr"]?.[0]?.["w:rFonts"]?.[0]?.["$"]["w:ascii"];
+		if (fontFamily) {
+			css["font-family"] = `'${fontFamily.replace(/['"]/g, "")}'`;
 		}
 
 		return css;
@@ -546,6 +578,14 @@ class WordDocument {
 		});
 
 		return styleCssObject;
+	}
+
+	async readXmlFile(filePath) {
+		const parser = new xml2js.Parser();
+		const xmlContent = await fileSystem.readFile(filePath);
+		const object = await parser.parseStringPromise(xmlContent);
+
+		return { object, content: xmlContent };
 	}
 
 	// #endregion
