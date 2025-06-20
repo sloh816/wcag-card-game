@@ -214,29 +214,19 @@ class WordDocument {
 		const documentXmlPath = this.unzippedFolder + "/word/document.xml";
 		const documentXmlContent = await fileSystem.readFile(documentXmlPath);
 
-		// get all the paragraph styles from the document.xml file
-		const paragraphStyles = new Set(["Normal"]); // add Normal style as default
+		// get all the character and paragraph styles from the document.xml file
+		const styleIdSet = new Set(["Normal"]); // add Normal style as default
 		const $ = cheerio.load(documentXmlContent);
-		$("w\\:pStyle").each((_, style) => {
+		$("w\\:pStyle, w\\:rStyle").each((_, style) => {
 			const styleId = $(style).attr("w:val");
 			if (styleId) {
-				paragraphStyles.add(styleId);
-			}
-		});
-
-		// get all character styles from the document.xml file
-		const characterStyles = new Set();
-		$("w\\:rStyle").each((_, style) => {
-			const styleId = $(style).attr("w:val");
-			if (styleId) {
-				characterStyles.add(styleId);
+				styleIdSet.add(styleId);
 			}
 		});
 
 		// convert sets to arrays and join them
-		const stylesArray = Array.from(paragraphStyles).concat(Array.from(characterStyles));
-
-		const stylesCss = this.generateCssObjects(stylesArray, stylesObject);
+		const styleIds = Array.from(styleIdSet);
+		const stylesCss = this.generateCssObjects(styleIds, stylesObject);
 
 		// create a CSS string from the stylesCss array
 		const cssString = stylesCss
@@ -461,32 +451,29 @@ class WordDocument {
 			if (style) {
 				const name = style["w:name"][0]["$"]["w:val"];
 				const className = slugify(name);
+
+				// Get a list of styles that this style is based on
 				const basedOnStyles = this.getListOfBasedOnStyles(id, stylesObjectFromXml);
 
+				// get the css object for each basedOn style and merge
 				const cssObjects = [];
 				basedOnStyles.reverse().forEach((basedOnId) => {
 					const basedOnStyle = this.getStyleData(basedOnId, stylesObjectFromXml);
 					const css = this.getCssFromStyleData(basedOnStyle);
 					cssObjects.push(css);
 				});
-
-				// merge the CSS objects
-				const css = Object.assign({}, ...cssObjects);
+				const css = Object.assign({}, ...cssObjects); // merge the CSS objects
 
 				// if styleId is hyperlink, add <a> tag
 				let selector = "." + className;
 
 				if (id === "Hyperlink") {
-					selector = selector + ", a";
+					selector = selector + ", a:not([class^=toc] a)";
 				}
 
+				// if style is TOC, apply it to the <a> tag
 				if (id.startsWith("TOC")) {
 					css["display"] = "block";
-
-					// check if css has 'text-decoration'
-					if (!css["text-decoration"]) {
-						css["text-decoration"] = "none"; // remove underline from toc a
-					}
 
 					styleCssObject.push({
 						id,
@@ -498,6 +485,7 @@ class WordDocument {
 					return;
 				}
 
+				// if style is spacer, calculate height based on margins and font size
 				if (className === "spacer") {
 					const marginTop = css["margin-top"].replace("px", "") || 0;
 					const marginBottom = css["margin-bottom"].replace("px", "") || 0;
