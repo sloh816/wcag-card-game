@@ -166,7 +166,7 @@ const WordToHtmlPage = () => {
 
 	const renderDocumentOptions = () =>
 		showDocumentOptions && (
-			<div className="ml-8 mb-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+			<div className="ml-8 mb-8 grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-100 p-4 rounded-lg">
 				<div className="flex flex-col gap-1">
 					<label
 						htmlFor="document-title"
@@ -188,7 +188,7 @@ const WordToHtmlPage = () => {
 					<input
 						type="file"
 						accept=".png,.jpg,.jpeg,.ico"
-						className="border-dashed border-navy-100 border p-4 w-full rounded-lg bg-slate-100 cursor-pointer hover:bg-navy-20 transition-all text-sm"
+						className="border-dashed border-navy-100 border p-4 w-full rounded-lg bg-white cursor-pointer hover:bg-navy-20 transition-all text-sm"
 						id="favicon"
 						onChange={handleFileChange}
 					/>
