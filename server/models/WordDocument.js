@@ -214,12 +214,23 @@ class WordDocument {
 		const documentXmlPath = this.unzippedFolder + "/word/document.xml";
 		const documentXmlContent = await fileSystem.readFile(documentXmlPath);
 
+		// find numbering elements and get class
+		const numberingXmlPath = this.unzippedFolder + "/word/numbering.xml";
+		const numberingXmlContent = await fileSystem.readFile(numberingXmlPath);
+		const numberingObject = await parser.parseStringPromise(numberingXmlContent);
+
 		// get all the character and paragraph styles from the document.xml file
 		const styleIdSet = new Set(["Normal"]); // add Normal style as default
 		const $ = cheerio.load(documentXmlContent);
 		$("w\\:pStyle, w\\:rStyle").each((_, style) => {
-			const styleId = $(style).attr("w:val");
+			let styleId = $(style).attr("w:val");
 			if (styleId) {
+				// check if it's a bullet
+				const isBullet = this.isBullet(styleId, numberingObject);
+				if (isBullet && isBullet.bulletType === "decimal") {
+					styleId += "---numberbullet";
+				}
+
 				styleIdSet.add(styleId);
 			}
 		});
@@ -446,6 +457,12 @@ class WordDocument {
 	generateCssObjects(styleIds, stylesObjectFromXml) {
 		const styleCssObject = [];
 		styleIds.forEach((id) => {
+			const isNumberList = id.endsWith("---numberbullet");
+
+			if (isNumberList) {
+				id = id.replace("---numberbullet", "");
+			}
+
 			const style = this.getStyleData(id, stylesObjectFromXml);
 
 			if (style) {
@@ -501,6 +518,19 @@ class WordDocument {
 
 					css["height"] = height + "px";
 					css["width"] = "100%";
+				}
+
+				// if is number bullet, apply text-indent to margin-left
+				if (isNumberList) {
+					const textIndent = css["text-indent"].replace("px", "") || 0;
+					const marginLeft = css["margin-left"]
+						? css["margin-left"].replace("px", "")
+						: 0;
+
+					const newMarginLeft = parseInt(marginLeft) + parseInt(textIndent) + "px";
+
+					css["margin-left"] = newMarginLeft;
+					delete css["text-indent"];
 				}
 
 				// if css object is not empty...
