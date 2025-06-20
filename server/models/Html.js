@@ -183,12 +183,25 @@ class Html {
 		// add an aria label to the footnote back button
 		$("a[href^=#footnote]").each((_, a) => {
 			$(a).attr("aria-label", "Back to endnote reference");
+			$(a).unwrap();
 		});
 
 		// wrap the endnotes list in a 'section' tag and add a 'Endnotes' heading
 		$("ol:has(li[id*=footnote])").each((_, ol) => {
 			$(ol).wrap('<section id="endnotes"></section>');
 			$(ol).before('<h2 class="heading-2">Endnotes</h2>');
+
+			// add style to the li and child elements
+			$(ol)
+				.find("li")
+				.each((_, li) => {
+					$(li).attr("style", "margin:1em 0;");
+					$(li)
+						.find("*")
+						.each((_, child) => {
+							$(child).attr("style", "display:inline;");
+						});
+				});
 		});
 
 		//  if table class includes "callout" or "layout", convert to div
