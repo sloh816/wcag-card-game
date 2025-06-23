@@ -246,6 +246,7 @@ class WordDocument {
 				await this.unzip();
 			}
 
+			// check if it's a system font
 			const systemFontsFile = await fileSystem.readFile("server/utils/systemFonts.json");
 			const systemFonts = JSON.parse(systemFontsFile);
 
@@ -259,10 +260,10 @@ class WordDocument {
 
 					if (rFonts["w:ascii"]) {
 						if (!systemFonts.includes(rFonts["w:ascii"])) {
-							const isBold = style["w:rPr"][0]["w:b"] ? " Bold" : "";
-							const isItalic = style["w:rPr"][0]["w:i"] ? " Italic" : "";
-							const font = `${rFonts["w:ascii"]}${isBold}${isItalic}`.trim();
-							fontSet.add(font);
+							const isBold = style["w:rPr"][0]["w:b"] ? true : false;
+							const isItalic = style["w:rPr"][0]["w:i"] ? true : false;
+							const name = `${rFonts["w:ascii"]}`.trim();
+							fontSet.add({ name, bold: isBold, italic: isItalic });
 						}
 					}
 				}
@@ -346,7 +347,9 @@ class WordDocument {
 			// generate CSS from the unzipped Word document
 			if (generateCss) {
 				const css = await this.generateCss();
-				await html.writeCssFile(css, "styles.css");
+				html.cssContent = css;
+				html.cssFile = "styles.css";
+				await html.writeCssFile();
 			}
 
 			console.log("☑️ Word document converted to HTML");

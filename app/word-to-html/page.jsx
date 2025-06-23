@@ -157,6 +157,7 @@ const WordToHtmlPage = () => {
 		const formData = new FormData();
 		const form = event.target;
 		const fontItems = form.querySelectorAll("li");
+
 		fontItems.forEach((fontItem) => {
 			const fontName = fontItem.querySelector(".font-name").textContent;
 			const fontSlug = fontName.toLowerCase().replace(/\s+/g, "-");
@@ -299,7 +300,7 @@ const WordToHtmlPage = () => {
 							Select a font from the database
 						</label>
 						<select
-							className="w-64 border border-white p-2 rounded-lg bg-white cursor-pointer text-sm"
+							className="w-52 border border-white p-2 rounded-lg bg-white cursor-pointer text-sm"
 							id={`${slug}-font-from-directus`}
 						>
 							<option value="">Select font</option>
@@ -315,17 +316,34 @@ const WordToHtmlPage = () => {
 						<input
 							type="file"
 							accept=".ttf,.otf"
-							className="border-dashed border-navy-100 border p-2 rounded-lg bg-white cursor-pointer hover:bg-navy-20 transition-all text-sm"
+							className="border-dashed border-navy-100 border p-2 rounded-lg bg-white cursor-pointer hover:bg-navy-20 transition-all text-sm w-52"
 							id={`${slug}-font-upload`}
 							onChange={handleFileChange}
 						/>
 					</div>
-					<div className="flex gap-4 ml-8">
+					<div className="flex gap-4 ml-4">
 						<div className="self-center mt-5">
 							{renderCheckbox({ id: `${slug}-font-bold`, label: "Bold" })}
 						</div>
 						<div className="self-center mt-5">
 							{renderCheckbox({ id: `${slug}-font-italic`, label: "Italic" })}
+						</div>
+						<div className="flex flex-col gap-1">
+							<label
+								htmlFor={`${slug}-font-style`}
+								className="text-charcoal-100 cursor-pointer text-sm"
+							>
+								Font style
+							</label>
+							<select
+								className="w-52 border border-white p-2 rounded-lg bg-white cursor-pointer text-sm"
+								id={`${slug}-font-style`}
+							>
+								<option value="serif">Serif</option>
+								<option value="sans-serif">Sans-serif</option>
+								<option value="'Brush Script MT', sans-serif">Script</option>
+								<option value="monospace">Monospace</option>
+							</select>
 						</div>
 					</div>
 				</div>

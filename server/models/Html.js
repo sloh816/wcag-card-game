@@ -2,14 +2,16 @@ const fileSystem = require("../utils/fileSystem");
 const cheerio = require("cheerio");
 const { slugify } = require("../utils/strings");
 const convertTocToNestedList = require("../utils/convertTocToNestedList");
+const Directus = require("./Directus");
 
 class Html {
-	constructor(file, folder, content = null, imagesFolder = null, cssFile = null) {
+	constructor(file, folder, content = null, imagesFolder = null, cssContent = null) {
 		this.file = file;
 		this.folder = folder;
 		this.content = content;
 		this.imagesFolder = imagesFolder;
-		this.cssFile = cssFile;
+		this.cssContent = cssContent;
+		this.cssFile = null; // eg. 'styles.css' or 'assets/styles.css'
 	}
 
 	getFilePath() {
@@ -258,17 +260,77 @@ class Html {
 		return outputZipPath;
 	}
 
-	async writeCssFile(cssContent, fileName) {
-		const cssFilePath = `${this.folder}/${fileName}`;
-		await fileSystem.writeFile(cssFilePath, cssContent);
-		this.cssFile = cssFilePath;
+	async writeCssFile() {
+		if (!this.cssContent || !this.cssFile || !this.folder) {
+			console.log("❌ No CSS content or file path provided.");
+			return;
+		}
 
+		const cssFilePath = `${this.folder}/${this.cssFile}`;
+		await fileSystem.writeFile(cssFilePath, this.cssContent);
+
+		// Add the CSS file reference to the HTML content and write the HTML file
 		if (this.content) {
 			const $ = cheerio.load(this.content);
-			$("head").append(`<link rel="stylesheet" href="${fileName}">`);
-			this.content = $.html();
-			await this.writeFile();
+
+			// Check if the CSS file is already included
+			if ($(`link[href="${this.cssFile}"]`).length > 0) {
+				console.log(`✅ CSS file "${this.cssFile}" is already included.`);
+			} else {
+				$("head").append(`<link rel="stylesheet" href="${this.cssFile}">`);
+				this.content = $.html();
+				await this.writeFile();
+			}
 		}
+	}
+
+	async addFontFromDirectus(font) {
+		if (!this.cssContent) {
+			console.log("❌ No CSS found to add fonts.");
+			return;
+		}
+
+		// check if font is in directus
+		const directus = new Directus();
+		const fontData = await directus.getFontByName(font.name);
+
+		let fontAdded = false;
+		if (fontData) {
+			if (fontData.embed_code) {
+				// if embed code starts with '@import', add it to the CSS file
+				if (fontData.embed_code.startsWith("@import")) {
+					if (!this.cssContent.includes(fontData.embed_code)) {
+						this.cssContent = `${fontData.embed_code}\n\n` + this.cssContent;
+					}
+				}
+
+				// if embed code starts with <link, add to the HTML file
+				else if (fontData.embed_code.startsWith("<link")) {
+					// Check if the link is already included
+					if (!this.content) {
+						console.log("❌ No HTML content found to add fonts.");
+					} else if (!this.content.includes(fontData.embed_code)) {
+						const $ = cheerio.load(this.content);
+						$("head").append(fontData.embed_code);
+						this.content = $.html();
+						await this.writeFile();
+					}
+				}
+
+				// update the font-family in the CSS content
+				this.cssContent = this.cssContent.replaceAll(
+					`'${font.name}';`,
+					`'${font.name}', ${fontData.font_style};`
+				);
+				await this.writeCssFile();
+
+				fontAdded = true;
+			}
+		} else {
+			console.log(`❌ Font "${font.name}" not found in Directus.`);
+		}
+
+		return { font, fontAdded };
 	}
 }
 

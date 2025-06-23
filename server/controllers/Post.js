@@ -81,12 +81,16 @@ class PostController {
 				generateCss
 			);
 
-			let fontsFound = false;
-
+			// Check if any fonts are found in the Word document
+			const fontsFound = false;
 			if (generateCss) {
-				const fonts = await wordDocument.getFonts();
-				if (fonts && fonts.length > 0) {
-					fontsFound = { fonts };
+				const fontsInWord = await wordDocument.getFonts();
+
+				if (fontsInWord.length > 0) {
+					for (const font of fontsInWord) {
+						const response = await html.addFontFromDirectus(font);
+						console.log(response);
+					}
 				}
 			}
 
