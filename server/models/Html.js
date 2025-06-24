@@ -323,7 +323,6 @@ class Html {
 					`'${font.name}';`,
 					`'${font.name}', ${fontData.font_style};`
 				);
-				await this.writeCssFile();
 
 				fontAdded = true;
 			} else {
@@ -338,18 +337,19 @@ class Html {
 				for (const fontId of fontData[fontStyle]) {
 					const fontFile = await directus.getFontFileByFontId(fontId, fontStyle);
 					const ext = fontFile?.filename_download.split(".").pop();
-					fontFiles[ext] = {
-						fileId: fontFile?.id,
-						fileName: fontFile?.filename_download,
-						title: fontFile?.title
-					};
+					// fontFiles[ext] = {
+					// 	fileId: fontFile?.id,
+					// 	fileName: fontFile?.filename_download,
+					// 	title: fontFile?.title
+					// };
+					fontFiles[ext] = fontFile;
 				}
 
 				// If woff and woff2 files don't exist, create them from ttf
 				if (!fontFiles["woff"] || !fontFiles["woff2"]) {
 					try {
 						// download ttf to temp folder
-						const ttfFileId = fontFiles["ttf"]["fileId"];
+						const ttfFileId = fontFiles["ttf"]["id"];
 						const tempFontFilePath = "server/lib/temp/" + ttfFileId + ".ttf";
 						await directus.downloadFile(ttfFileId, tempFontFilePath);
 
@@ -385,17 +385,8 @@ class Html {
 						);
 
 						// add to fontFiles object
-						fontFiles["woff"] = {
-							fileId: uploadedWoffFile.id,
-							fileName: uploadedWoffFile.filename_download,
-							title: uploadedWoffFile.title
-						};
-
-						fontFiles["woff2"] = {
-							fileId: uploadedWoff2File.id,
-							fileName: uploadedWoff2File.filename_download,
-							title: uploadedWoff2File.title
-						};
+						fontFiles["woff"] = uploadedWoffFile;
+						fontFiles["woff2"] = uploadedWoff2File;
 
 						// delete the temp files
 						await fileSystem.deleteFile(tempFontFilePath);
@@ -406,8 +397,55 @@ class Html {
 					}
 				}
 
-				// Add font files to the CSS content
+				// Add font files to the html folder
+				// create a folder for the font files if it doesn't exist
+				const fontFolder = `${this.folder}/fonts`;
+				await fileSystem.createFolder(fontFolder);
+
+				// download the font files to the folder
+				const fontFaceData = {
+					"font-family": `"${font.name}"`,
+					"font-weight": font.bold ? "bold" : "normal",
+					"font-style": font.italic ? "italic" : "normal",
+					src: []
+				};
+				for (const fontObj of Object.values(fontFiles)) {
+					const ext = fontObj.filename_download.split(".").pop();
+
+					if (ext === "woff" || ext === "woff2") {
+						const fontFilePath = `${fontFolder}/${fontObj.filename_download}`;
+						await directus.downloadFile(fontObj.id, fontFilePath);
+						fontFaceData["src"].push(
+							`url("fonts/${fontObj.filename_download}") format("${ext}")`
+						);
+					}
+				}
+
+				// update the font-family in the CSS content
+				this.cssContent = this.cssContent.replaceAll(
+					`'${font.name}';`,
+					`'${font.name}', ${fontData.font_style};`
+				);
+
+				// Add the font-face to the CSS content
+				// loop through the fontFaceData object and write the a string
+				let fontFaceStr = `@font-face {\n`;
+				for (const [key, value] of Object.entries(fontFaceData)) {
+					if (key === "src") {
+						fontFaceStr += `\tsrc: ${value.join(", ")};\n`;
+					} else {
+						fontFaceStr += `\t${key}: ${value};\n`;
+					}
+				}
+				fontFaceStr += `}\n\n`;
+				if (!this.cssContent.includes(fontFaceStr)) {
+					this.cssContent = fontFaceStr + this.cssContent;
+				}
+
+				fontAdded = true;
 			}
+
+			await this.writeCssFile();
 		} else {
 			console.log(`❌ Font "${font.name}" not found in Directus.`);
 		}
