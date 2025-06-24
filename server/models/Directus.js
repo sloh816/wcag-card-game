@@ -13,6 +13,7 @@ const fs = require("fs");
 // const FormData = require("form-data");
 const getMimeType = require("../utils/getMimeType");
 const { slugify } = require("../utils/strings");
+const ttfToWoff = require("../utils/toWoff");
 
 class Directus {
 	constructor() {
@@ -119,6 +120,53 @@ class Directus {
 			);
 		} catch (error) {
 			console.error("❌ Error adding font file relation:", error);
+		}
+	}
+
+	async createWoffFiles(font, fontFileId, fontStyle) {
+		try {
+			// TODO: Check if font file is a ttf or otf
+
+			// TODO: if otf, convert to ttf first
+
+			// download ttf to temp folder
+			const tempFontFilePath = "server/lib/temp/" + fontFileId + ".ttf";
+			await this.downloadFile(fontFileId, tempFontFilePath);
+
+			const tempWoffPath = "server/lib/temp/" + fontFileId + ".woff";
+			const tempWoff2Path = "server/lib/temp/" + fontFileId + ".woff2";
+
+			// convert ttf to woff and woff2
+			await ttfToWoff(tempFontFilePath, tempWoffPath);
+			await ttfToWoff(tempFontFilePath, tempWoff2Path);
+
+			// upload the woff and woff2 files to Directus
+			const uploadedWoffFile = await this.uploadFile(
+				tempWoffPath,
+				font.name + " (WOFF)",
+				"fonts"
+			);
+			const uploadedWoff2File = await this.uploadFile(
+				tempWoff2Path,
+				font.name + " (WOFF2)",
+				"fonts"
+			);
+
+			// add relationship to the font
+			await this.addFontFileRelation(font.id, uploadedWoffFile.id, fontStyle);
+			await this.addFontFileRelation(font.id, uploadedWoff2File.id, fontStyle);
+
+			// delete the temp files
+			await fileSystem.deleteFile(tempFontFilePath);
+			await fileSystem.deleteFile(tempWoffPath);
+			await fileSystem.deleteFile(tempWoff2Path);
+
+			return {
+				woff: uploadedWoffFile,
+				woff2: uploadedWoff2File
+			};
+		} catch (error) {
+			console.error("❌ Error creating WOFF files:", error);
 		}
 	}
 }

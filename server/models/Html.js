@@ -3,7 +3,6 @@ const cheerio = require("cheerio");
 const { slugify } = require("../utils/strings");
 const convertTocToNestedList = require("../utils/convertTocToNestedList");
 const Directus = require("./Directus");
-const ttfToWoff = require("../utils/toWoff");
 
 class Html {
 	constructor(file, folder, content = null, imagesFolder = null, cssContent = null) {
@@ -348,50 +347,18 @@ class Html {
 				// If woff and woff2 files don't exist, create them from ttf
 				if (!fontFiles["woff"] || !fontFiles["woff2"]) {
 					try {
-						// download ttf to temp folder
-						const ttfFileId = fontFiles["ttf"]["id"];
-						const tempFontFilePath = "server/lib/temp/" + ttfFileId + ".ttf";
-						await directus.downloadFile(ttfFileId, tempFontFilePath);
+						// TODO: if ttf file doesn't exist, check if otf file exists.
 
-						const tempWoffPath = "server/lib/temp/" + ttfFileId + ".woff";
-						const tempWoff2Path = "server/lib/temp/" + ttfFileId + ".woff2";
-
-						// convert ttf to woff and woff2
-						await ttfToWoff(tempFontFilePath, tempWoffPath);
-						await ttfToWoff(tempFontFilePath, tempWoff2Path);
-
-						// upload the woff and woff2 files to Directus
-						const uploadedWoffFile = await directus.uploadFile(
-							tempWoffPath,
-							fontFiles["ttf"]["title"] + " (WOFF)",
-							"fonts"
-						);
-						const uploadedWoff2File = await directus.uploadFile(
-							tempWoff2Path,
-							fontFiles["ttf"]["title"] + " (WOFF2)",
-							"fonts"
-						);
-
-						// add relationship to the font
-						await directus.addFontFileRelation(
-							fontData.id,
-							uploadedWoffFile.id,
-							fontStyle
-						);
-						await directus.addFontFileRelation(
-							fontData.id,
-							uploadedWoff2File.id,
+						const ttfFontId = fontFiles["ttf"]?.id;
+						const woffFiles = await directus.createWoffFiles(
+							fontData,
+							ttfFontId,
 							fontStyle
 						);
 
 						// add to fontFiles object
-						fontFiles["woff"] = uploadedWoffFile;
-						fontFiles["woff2"] = uploadedWoff2File;
-
-						// delete the temp files
-						await fileSystem.deleteFile(tempFontFilePath);
-						await fileSystem.deleteFile(tempWoffPath);
-						await fileSystem.deleteFile(tempWoff2Path);
+						fontFiles["woff"] = woffFiles["woff"];
+						fontFiles["woff2"] = woffFiles["woff2"];
 					} catch (error) {
 						console.error("❌ Error converting TTF to WOFF:", error);
 					}
