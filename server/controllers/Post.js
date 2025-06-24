@@ -89,7 +89,7 @@ class PostController {
 				if (fontsInWord.length > 0) {
 					for (const font of fontsInWord) {
 						const response = await html.addFontFromDirectus(font);
-						console.log(response);
+						// console.log(response);
 					}
 				}
 			}
