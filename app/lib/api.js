@@ -22,8 +22,31 @@ const api = {
 				"Content-Type": "multipart/form-data"
 			}
 		});
-		console.log(response);
 		return response;
+	},
+
+	addFonts: async (formDataArray) => {
+		let data = null;
+		for (const formData of formDataArray) {
+			const response = await axios.post(`${serverUrl}/add-font`, formData, {
+				headers: {
+					"Content-Type": "multipart/form-data"
+				}
+			});
+
+			if (response.status !== 200) {
+				throw new Error(`Failed to add font: ${response.statusText}`);
+			}
+
+			if (response.status === 200) {
+				console.log(`Font added successfully`);
+				data = response;
+			} else {
+				data = { error: `Failed to add font: ${response.statusText}` };
+			}
+		}
+
+		return data;
 	},
 
 	checkConnection: async () => {

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
+import { getFonts } from "@/lib/directus";
 import Header from "@/components/Header";
 import ServerConnection from "@/components/ServerConnection";
 import SuccessMessage from "@/components/SuccessMessage";
@@ -20,14 +21,25 @@ const WordToHtmlPage = () => {
 	const [isConverting, setIsConverting] = useState(false);
 	const [showDocumentOptions, setShowDocumentOptions] = useState(false);
 	const [fontFiles, setFontFiles] = useState({});
-	const [fontsFound, setFontsFound] = useState();
+	const [fontsNotFound, setFontsNotFound] = useState();
 	const [htmlFolder, setHtmlFolder] = useState();
+	const [fontsFromDirectus, setFontsFromDirectus] = useState([]);
 
 	useEffect(() => {
 		document.title = "Word to HTML";
+		fetchFonts();
 	}, []);
 
 	// Utility functions
+	const fetchFonts = async () => {
+		try {
+			const response = await getFonts();
+			setFontsFromDirectus(response);
+		} catch (error) {
+			console.error("Error fetching fonts from Directus:", error);
+		}
+	};
+
 	const clearMessages = () => {
 		setErrorMessage(null);
 		setSuccessMessage(null);
@@ -89,6 +101,7 @@ const WordToHtmlPage = () => {
 	const handleSubmit = async (event) => {
 		event.preventDefault();
 		clearMessages();
+		setFontsNotFound(null);
 
 		try {
 			validateFile(file);
@@ -119,8 +132,8 @@ const WordToHtmlPage = () => {
 					setDownloadLink(response.data.downloadPath);
 				}
 
-				if (response.data.fontsFound) {
-					setFontsFound(response.data.fontsFound);
+				if (response.data.fontsNotFound.length > 0) {
+					setFontsNotFound(response.data.fontsNotFound);
 					setHtmlFolder(response.data.htmlFolder);
 				}
 			}
@@ -154,29 +167,43 @@ const WordToHtmlPage = () => {
 	const handleFontUpload = async (event) => {
 		event.preventDefault();
 
-		const formData = new FormData();
 		const form = event.target;
-		const fontItems = form.querySelectorAll("li");
+		const fontItems = form.querySelectorAll(".font-item");
+
+		const formDataArray = [];
 
 		fontItems.forEach((fontItem) => {
-			const fontName = fontItem.querySelector(".font-name").textContent;
-			const fontSlug = fontName.toLowerCase().replace(/\s+/g, "-");
-			console.log({ fontName });
-			const inputs = fontItem.querySelectorAll("input");
-			const embedCode = fontItem.querySelector(".embed-code textarea").value;
+			const formData = new FormData();
 
+			const fontName = fontItem.querySelector(".font-name").textContent;
+			formData.append("name", fontName);
+
+			const inputs = fontItem.querySelectorAll("input");
 			inputs.forEach((input) => {
-				const inputId = input.id;
+				const inputName = input.name;
+				const inputType = input.type;
+
+				if (inputName === "font-upload" && input.files.length > 0) {
+					const file = input.files[0];
+					formData.append("file", file);
+				} else if (inputType === "checkbox") {
+					formData.append(inputName, input.checked);
+				}
 			});
 
-			formData.append("embedCode", embedCode);
+			const fontStyleSelect = fontItem.querySelector("select[name='font-style']");
+			if (fontStyleSelect) formData.append("font-style", fontStyleSelect.value);
+
+			formData.append("htmlFolder", htmlFolder);
+
+			formDataArray.push(formData);
 		});
 
-		formData.append("htmlFolder", htmlFolder);
-
-		console.log("Font upload FormData entries:");
-		for (let pair of formData.entries()) {
-			console.log(pair[0], pair[1]);
+		const response = await api.addFonts(formDataArray);
+		if (response.data.downloadPath) {
+			setSuccessMessage("Word document processed successfully!");
+			setDownloadLink(response.data.downloadPath);
+			setFontsNotFound(null);
 		}
 	};
 
@@ -260,10 +287,16 @@ const WordToHtmlPage = () => {
 			</div>
 		);
 
-	const renderCheckbox = ({ id, label }) => {
+	const renderCheckbox = ({ id, label, name, defaultChecked = false }) => {
 		return (
 			<div className="flex items-center my-4 gap-2">
-				<input type="checkbox" className="w-4 h-4" id={id} />
+				<input
+					type="checkbox"
+					className="w-4 h-4"
+					id={id}
+					name={name}
+					defaultChecked={defaultChecked}
+				/>
 				<label htmlFor={id} className="text-charcoal-100 cursor-pointer">
 					{label}
 				</label>
@@ -277,7 +310,7 @@ const WordToHtmlPage = () => {
 		</button>
 	);
 
-	const renderFontInputs = ({ name }) => {
+	const renderFontInputs = ({ name, bold, italic }) => {
 		const slug = name.toLowerCase().replace(/\s+/g, "-");
 		return (
 			<div className="bg-slate-200 p-4 rounded-lg">
@@ -293,58 +326,51 @@ const WordToHtmlPage = () => {
 				</div>
 				<div className="upload-font flex items-start gap-4 mt-4">
 					<div className="flex flex-col gap-1">
-						<label
-							htmlFor={`${slug}-font-from-directus`}
-							className="text-charcoal-100 cursor-pointer text-sm"
-						>
-							Select a font from the database
-						</label>
-						<select
-							className="w-52 border border-white p-2 rounded-lg bg-white cursor-pointer text-sm"
-							id={`${slug}-font-from-directus`}
-						>
-							<option value="">Select font</option>
-							<option value="fs-me-pro-regular">FS Me Pro Regular</option>
-							<option value="fs-me-pro-bold">FS Me Pro Bold</option>
-						</select>
-					</div>
-					<p className="self-center mt-4">or</p>
-					<div className="flex flex-col gap-1">
 						<label htmlFor="font" className="text-charcoal-100 cursor-pointer text-sm">
 							Upload a .ttf or .otf file
 						</label>
 						<input
 							type="file"
 							accept=".ttf,.otf"
-							className="border-dashed border-navy-100 border p-2 rounded-lg bg-white cursor-pointer hover:bg-navy-20 transition-all text-sm w-52"
+							className="border-dashed border-navy-100 border p-2 rounded-lg bg-white cursor-pointer hover:bg-navy-20 transition-all text-sm "
 							id={`${slug}-font-upload`}
 							onChange={handleFileChange}
+							name="font-upload"
 						/>
 					</div>
-					<div className="flex gap-4 ml-4">
-						<div className="self-center mt-5">
-							{renderCheckbox({ id: `${slug}-font-bold`, label: "Bold" })}
-						</div>
-						<div className="self-center mt-5">
-							{renderCheckbox({ id: `${slug}-font-italic`, label: "Italic" })}
-						</div>
-						<div className="flex flex-col gap-1">
-							<label
-								htmlFor={`${slug}-font-style`}
-								className="text-charcoal-100 cursor-pointer text-sm"
-							>
-								Font style
-							</label>
-							<select
-								className="w-52 border border-white p-2 rounded-lg bg-white cursor-pointer text-sm"
-								id={`${slug}-font-style`}
-							>
-								<option value="serif">Serif</option>
-								<option value="sans-serif">Sans-serif</option>
-								<option value="'Brush Script MT', sans-serif">Script</option>
-								<option value="monospace">Monospace</option>
-							</select>
-						</div>
+					<div className="self-center mt-5">
+						{renderCheckbox({
+							id: `${slug}-font-bold`,
+							label: "Bold",
+							name: "bold",
+							defaultChecked: bold
+						})}
+					</div>
+					<div className="self-center mt-5">
+						{renderCheckbox({
+							id: `${slug}-font-italic`,
+							label: "Italic",
+							name: "italic",
+							defaultChecked: italic
+						})}
+					</div>
+					<div className="flex flex-col gap-1">
+						<label
+							htmlFor={`${slug}-font-style`}
+							className="text-charcoal-100 cursor-pointer text-sm"
+						>
+							Font style
+						</label>
+						<select
+							className="w-52 border border-white p-2 rounded-lg bg-white cursor-pointer text-sm"
+							id={`${slug}-font-style`}
+							name="font-style"
+						>
+							<option value="serif">Serif</option>
+							<option value="sans-serif">Sans serif</option>
+							<option value="'Brush Script MT', sans-serif">Script</option>
+							<option value="monospace">Monospace</option>
+						</select>
 					</div>
 				</div>
 				<div className="embed-code mt-4 hidden">
@@ -402,24 +428,34 @@ const WordToHtmlPage = () => {
 				/>
 			)}
 
-			<div className="mt-8">
-				<h2 className="heading-2">Fonts detected</h2>
-				<p className="my-4">
-					The following fonts have been detected in the Word document.
-					<br />
-					Please select the relevant fonts from the database or upload the font files to
-					add to the HTML:
-				</p>
-				<form onSubmit={handleFontUpload}>
-					<ul className="grid gap-2">
-						<li>{renderFontInputs({ name: "FS Me Pro" })}</li>
-						<li>{renderFontInputs({ name: "FS Me Pro Bold" })}</li>
-						<li>{renderFontInputs({ name: "Helvetica" })}</li>
-					</ul>
+			{fontsNotFound && (
+				<div className="mt-8">
+					<h2 className="heading-2">Fonts detected</h2>
+					<p className="my-4">
+						The following fonts have been detected in the Word document, but not found
+						in the database.
+						<br />
+						Please upload the font files here:
+					</p>
+					<form onSubmit={handleFontUpload}>
+						<ul className="grid gap-2">
+							{fontsNotFound.map((font) => {
+								return (
+									<li key={font.name} className="font-item">
+										{renderFontInputs({
+											name: font.name,
+											bold: font.bold,
+											italic: font.italic
+										})}
+									</li>
+								);
+							})}
+						</ul>
 
-					<button className="my-8 button button--grapefruit">Add fonts</button>
-				</form>
-			</div>
+						<button className="my-8 button button--grapefruit">Add fonts</button>
+					</form>
+				</div>
+			)}
 		</div>
 	);
 };

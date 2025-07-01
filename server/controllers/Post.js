@@ -5,6 +5,7 @@ require("dotenv").config();
 const fileSystem = require("../utils/fileSystem");
 const Html = require("../models/Html");
 const WordDocument = require("../models/WordDocument");
+const Directus = require("../models/Directus");
 
 const upload = multer({
 	dest: "server/lib/uploads/"
@@ -30,6 +31,8 @@ class PostController {
 			upload.fields([{ name: "file" }, { name: "favicon" }]),
 			this.wordToHtml.bind(this)
 		);
+
+		this.router.post("/add-font", upload.single("file"), this.addFont.bind(this));
 	}
 
 	async prependStyles(req, res) {
@@ -82,14 +85,15 @@ class PostController {
 			);
 
 			// Check if any fonts are found in the Word document
-			const fontsFound = false;
+			const fontsNotFound = [];
 			if (generateCss) {
 				const fontsInWord = await wordDocument.getFonts();
+				console.log(fontsInWord);
 
 				if (fontsInWord.length > 0) {
 					for (const font of fontsInWord) {
 						const response = await html.addFontFromDirectus(font);
-						// console.log(response);
+						if (!response.fontAdded) fontsNotFound.push(font);
 					}
 				}
 			}
@@ -99,10 +103,47 @@ class PostController {
 
 			// get download path
 			const downloadPath = this.getDownloadPath(zipFileName);
-			res.json({ downloadPath, fontsFound, htmlFolder: html.folder });
+			res.json({ downloadPath, fontsNotFound, htmlFolder: html.folder });
 		} catch (error) {
 			res.status(500).json({ error: "Error processing Word document: " + error.message });
 		}
+	}
+
+	async addFont(req, res) {
+		const file = req.file;
+
+		const fontFile = file ? await this.uploadFile(file) : null;
+
+		// upload font to Directus
+		const directus = new Directus();
+
+		const type =
+			req.body.bold === "true" ? "bold" : req.body.italic === "true" ? "italic" : "regular";
+
+		await directus.addFont(
+			req.body.name,
+			req.body["font-style"],
+			req.body.embedCode,
+			type,
+			fontFile ? fontFile.folder + "/" + fontFile.file : null
+		);
+
+		// add font to html
+		const html = new Html("index.html", req.body.htmlFolder, null, null, null, "styles.css");
+		await html.getHtml();
+		await html.getCss();
+		await html.addFontFromDirectus({
+			name: req.body.name,
+			bold: type === "bold",
+			italic: type === "italic"
+		});
+
+		const outputZipFile = await html.zip();
+		const zipFileName = outputZipFile.split("/").pop();
+
+		// get download path
+		const downloadPath = this.getDownloadPath(zipFileName);
+		res.json({ downloadPath });
 	}
 
 	async uploadFile(file) {

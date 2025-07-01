@@ -5,13 +5,20 @@ const convertTocToNestedList = require("../utils/convertTocToNestedList");
 const Directus = require("./Directus");
 
 class Html {
-	constructor(file, folder, content = null, imagesFolder = null, cssContent = null) {
+	constructor(
+		file,
+		folder,
+		content = null,
+		imagesFolder = null,
+		cssContent = null,
+		cssFile = null
+	) {
 		this.file = file;
 		this.folder = folder;
 		this.content = content;
 		this.imagesFolder = imagesFolder;
 		this.cssContent = cssContent;
-		this.cssFile = null; // eg. 'styles.css' or 'assets/styles.css'
+		this.cssFile = cssFile; // eg. 'styles.css' or 'assets/styles.css'
 	}
 
 	getFilePath() {
@@ -28,6 +35,16 @@ class Html {
 		}
 
 		return this.content;
+	}
+
+	async getCss() {
+		if (!this.cssContent) {
+			// Read the CSS file
+			const cssFilePath = `${this.folder}/${this.cssFile}`;
+			this.cssContent = await fileSystem.readFile(cssFilePath);
+		}
+
+		return this.cssContent;
 	}
 
 	async prependStyles(outputFolder, outputFileName) {
@@ -285,10 +302,7 @@ class Html {
 	}
 
 	async addFontFromDirectus(font) {
-		if (!this.cssContent) {
-			console.log("❌ No CSS found to add fonts.");
-			return;
-		}
+		await this.getCss(); // Ensure CSS content is loaded
 
 		// check if font is in directus
 		const directus = new Directus();
@@ -332,16 +346,17 @@ class Html {
 				// get a list of font files from the Font item
 				const fontFiles = {};
 
-				// get an array of the regular font files for the font id.
+				// get an array of the font files for the font id
 				for (const fontId of fontData[fontStyle]) {
 					const fontFile = await directus.getFontFileByFontId(fontId, fontStyle);
 					const ext = fontFile?.filename_download.split(".").pop();
-					// fontFiles[ext] = {
-					// 	fileId: fontFile?.id,
-					// 	fileName: fontFile?.filename_download,
-					// 	title: fontFile?.title
-					// };
 					fontFiles[ext] = fontFile;
+				}
+
+				// If fontFiles is empty,
+				if (Object.keys(fontFiles).length === 0) {
+					console.log(`❌ No font files found for font "${font.name}" in Directus.`);
+					return { font, fontAdded: false };
 				}
 
 				// If woff and woff2 files don't exist, create them from ttf

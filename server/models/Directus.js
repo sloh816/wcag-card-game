@@ -13,7 +13,7 @@ const fs = require("fs");
 // const FormData = require("form-data");
 const getMimeType = require("../utils/getMimeType");
 const { slugify } = require("../utils/strings");
-const ttfToWoff = require("../utils/toWoff");
+const { ttfToWoff, otfToTtf } = require("../utils/toWoff");
 
 class Directus {
 	constructor() {
@@ -53,7 +53,7 @@ class Directus {
 			const file = await this.directus.request(readFile(fileId));
 			return file || null;
 		} catch (error) {
-			console.error("❌ Error fetching regular font file:", error);
+			console.error("❌ Error fetching font file:", error);
 		}
 	}
 
@@ -125,20 +125,27 @@ class Directus {
 
 	async createWoffFiles(font, fontFileId, fontStyle) {
 		try {
-			// TODO: Check if font file is a ttf or otf
+			const fontFile = await this.getFileById(fontFileId);
+			const tempOtfFilePath = "server/lib/temp/" + fontFileId + ".otf";
+			const tempTtfFIlePath = "server/lib/temp/" + fontFileId + ".ttf";
 
-			// TODO: if otf, convert to ttf first
+			// Check if font file is a ttf or otf
+			const ext = fontFile.filename_download.split(".").pop().toLowerCase();
+			if (ext === "otf") {
+				// if otf, convert to ttf first
+				await this.downloadFile(fontFileId, tempOtfFilePath);
+				await otfToTtf(tempOtfFilePath, tempTtfFIlePath);
+			}
 
 			// download ttf to temp folder
-			const tempFontFilePath = "server/lib/temp/" + fontFileId + ".ttf";
-			await this.downloadFile(fontFileId, tempFontFilePath);
+			await this.downloadFile(fontFileId, tempTtfFIlePath);
 
 			const tempWoffPath = "server/lib/temp/" + fontFileId + ".woff";
 			const tempWoff2Path = "server/lib/temp/" + fontFileId + ".woff2";
 
 			// convert ttf to woff and woff2
-			await ttfToWoff(tempFontFilePath, tempWoffPath);
-			await ttfToWoff(tempFontFilePath, tempWoff2Path);
+			await ttfToWoff(tempTtfFIlePath, tempWoffPath);
+			await ttfToWoff(tempTtfFIlePath, tempWoff2Path);
 
 			// upload the woff and woff2 files to Directus
 			const uploadedWoffFile = await this.uploadFile(
@@ -157,7 +164,7 @@ class Directus {
 			await this.addFontFileRelation(font.id, uploadedWoff2File.id, fontStyle);
 
 			// delete the temp files
-			await fileSystem.deleteFile(tempFontFilePath);
+			await fileSystem.deleteFile(tempTtfFIlePath);
 			await fileSystem.deleteFile(tempWoffPath);
 			await fileSystem.deleteFile(tempWoff2Path);
 
@@ -168,6 +175,38 @@ class Directus {
 		} catch (error) {
 			console.error("❌ Error creating WOFF files:", error);
 		}
+	}
+
+	async addFont(name, font_style, embed_code, type, filePath) {
+		let font = null;
+
+		// check if a font with the same name already exists
+		const existingFont = await this.getFontByName(name);
+		if (existingFont) {
+			font = existingFont;
+		} else {
+			// create a new font item
+			const newFont = await this.directus.request(
+				createItem("fonts", {
+					name,
+					font_style,
+					embed_code
+				})
+			);
+			font = newFont;
+		}
+
+		// add the font file
+		const uploadedFile = await this.uploadFile(filePath, name, "fonts");
+		await this.addFontFileRelation(font.id, uploadedFile.id, type);
+
+		// delete temp font file
+		await fileSystem.deleteFile(filePath);
+
+		// create WOFF files
+		await this.createWoffFiles(font, uploadedFile.id, type);
+
+		return font;
 	}
 }
 
