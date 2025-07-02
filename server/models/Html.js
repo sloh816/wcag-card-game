@@ -47,6 +47,30 @@ class Html {
 		return this.cssContent;
 	}
 
+	async buildHtmlFromFolder(folder) {
+		this.folder = folder;
+		// Find .html file in the folder
+		const files = await fileSystem.getSubFilesAndFolders(this.folder);
+		const htmlFile = files.find((file) => file.endsWith(".html"));
+
+		if (!htmlFile) {
+			throw new Error("❌ No HTML file found in the specified folder.");
+		} else {
+			this.file = htmlFile;
+			this.content = await fileSystem.readFile(`${this.folder}/${this.file}`);
+		}
+
+		// Read the CSS file
+		const cssFile = files.find((file) => file.endsWith(".css"));
+		if (cssFile) {
+			console.log("Found CSS file:", cssFile);
+			this.cssFile = cssFile;
+			this.cssContent = await fileSystem.readFile(`${this.folder}/${this.cssFile}`);
+		} else {
+			throw new Error("❌ No CSS file found in the specified folder.");
+		}
+	}
+
 	async prependStyles(outputFolder, outputFileName) {
 		// Read the HTML file
 		const content = await this.getHtml();

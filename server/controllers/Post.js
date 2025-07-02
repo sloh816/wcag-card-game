@@ -129,9 +129,8 @@ class PostController {
 		);
 
 		// add font to html
-		const html = new Html("index.html", req.body.htmlFolder, null, null, null, "styles.css");
-		await html.getHtml();
-		await html.getCss();
+		const html = new Html();
+		await html.buildHtmlFromFolder(req.body.htmlFolder);
 		await html.addFontFromDirectus({
 			name: req.body.name,
 			bold: type === "bold",
