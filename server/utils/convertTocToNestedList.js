@@ -19,7 +19,7 @@ function convertTocToNestedList(htmlString) {
 		if (tocItems.length === 0) return "";
 
 		const stack = [];
-		let tocResult = "<ul class='toc-list'>\n";
+		let tocResult = "<ul class='toc-list' style='list-style:none;padding:0;'>\n";
 		let currentLevel = null;
 
 		tocItems.forEach((item) => {
@@ -49,7 +49,7 @@ function convertTocToNestedList(htmlString) {
 				// Start a new nested list
 				tocResult += "\n";
 				const indent = "    ".repeat(level - 1);
-				tocResult += `${indent}<ul>\n`;
+				tocResult += `${indent}<ul style='list-style:none;padding:0;'>\n`;
 				tocResult += `${indent}    <li class="${className}"><a href="${href}">${text}</a>`;
 
 				// Push current level to stack

@@ -1,83 +1,399 @@
 "use client";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
+import { getFonts } from "@/lib/directus";
 import Header from "@/components/Header";
 import ServerConnection from "@/components/ServerConnection";
 import SuccessMessage from "@/components/SuccessMessage";
 
-const Page = ({}) => {
+// Constants
+const WORD_DOCUMENT_TYPE =
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const FAVICON_TYPES = ["image/png", "image/jpeg", "image/x-icon"];
+
+const WordToHtmlPage = () => {
+	// State management
 	const [file, setFile] = useState(null);
+	const [favicon, setFavicon] = useState(null);
 	const [errorMessage, setErrorMessage] = useState(null);
 	const [successMessage, setSuccessMessage] = useState(null);
 	const [downloadLink, setDownloadLink] = useState(null);
 	const [isConverting, setIsConverting] = useState(false);
-	const wordDocumentType =
-		"application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+	const [showDocumentOptions, setShowDocumentOptions] = useState(false);
+	const [fontFiles, setFontFiles] = useState({});
+	const [fontsNotFound, setFontsNotFound] = useState();
+	const [htmlFolder, setHtmlFolder] = useState();
+	const [fontsFromDirectus, setFontsFromDirectus] = useState([]);
 
 	useEffect(() => {
 		document.title = "Word to HTML";
+		fetchFonts();
 	}, []);
 
-	const handleFileChange = (event) => {
+	// Utility functions
+	const fetchFonts = async () => {
+		try {
+			const response = await getFonts();
+			setFontsFromDirectus(response);
+		} catch (error) {
+			console.error("Error fetching fonts from Directus:", error);
+		}
+	};
+
+	const clearMessages = () => {
 		setErrorMessage(null);
 		setSuccessMessage(null);
-		setFile(null);
+	};
 
-		const selectedFile = event.target.files[0];
-
-		if (selectedFile) {
-			if (selectedFile.type !== wordDocumentType) {
-				setErrorMessage("Please upload a valid Word document (.docx)");
-				return;
-			}
-
-			setFile(selectedFile);
+	const validateFile = (file) => {
+		if (!file) {
+			throw new Error("Please upload a file");
 		}
+		if (file.type !== WORD_DOCUMENT_TYPE) {
+			throw new Error("Please upload a valid Word document (.docx)");
+		}
+	};
+
+	const validateTemplateOptions = (documentTitle, favicon) => {
+		if (!documentTitle?.trim()) {
+			throw new Error("Please input a document title");
+		}
+		if (favicon && !FAVICON_TYPES.includes(favicon.type)) {
+			throw new Error("Please upload a valid favicon (png, jpeg, ico)");
+		}
+	};
+
+	// Event handlers
+	const handleFileChange = (event) => {
+		clearMessages();
+		const selectedFile = event.target.files[0];
+		const inputId = event.target.id;
+
+		if (inputId === "file") {
+			setFile(selectedFile);
+		} else if (inputId === "favicon") {
+			setFavicon(selectedFile);
+		} else if (inputId.endsWith("font-upload")) {
+			const fontSlug = inputId.replace("-font-upload", "");
+			setFontFiles((prev) => ({
+				...prev,
+				[fontSlug]: selectedFile
+			}));
+		}
+	};
+
+	const clearInput = (inputId) => {
+		const inputElement = document.getElementById(inputId);
+		if (inputElement) {
+			inputElement.value = "";
+		}
+
+		if (inputId === "file") {
+			setFile(null);
+		} else if (inputId === "favicon") {
+			setFavicon(null);
+		}
+
+		clearMessages();
+		setDownloadLink(null);
 	};
 
 	const handleSubmit = async (event) => {
 		event.preventDefault();
-		setErrorMessage(null);
-		setSuccessMessage(null);
-
-		if (!file) {
-			setErrorMessage("Please upload a file");
-			return;
-		}
-
-		if (file.type !== wordDocumentType) {
-			setErrorMessage("Please upload a valid Word document (.docx)");
-			return;
-		}
+		clearMessages();
+		setFontsNotFound(null);
 
 		try {
-			setIsConverting(true);
+			validateFile(file);
+
 			const formData = new FormData();
 			formData.append("file", file);
 
+			const includeTemplate = document.getElementById("template").checked;
+			formData.append("includeTemplate", includeTemplate);
+
+			if (includeTemplate) {
+				const documentTitle = document.getElementById("document-title").value;
+				validateTemplateOptions(documentTitle, favicon);
+
+				formData.append("documentTitle", documentTitle);
+				formData.append("favicon", favicon);
+			}
+
+			const generateCss = document.getElementById("generate-css").checked;
+			formData.append("generateCss", generateCss);
+
+			setIsConverting(true);
 			const response = await api.wordToHtml(formData);
 
 			if (response.status === 200) {
-				setIsConverting(false);
-				setSuccessMessage("Word document processed successfully!");
-				setDownloadLink(response.data.downloadPath);
+				if (response.data.downloadPath) {
+					setSuccessMessage("Word document processed successfully!");
+					setDownloadLink(response.data.downloadPath);
+				}
+
+				if (response.data.fontsNotFound.length > 0) {
+					setFontsNotFound(response.data.fontsNotFound);
+					setHtmlFolder(response.data.htmlFolder);
+				}
 			}
 		} catch (error) {
-			console.log("Error uploading file:", error);
-			if (error.response && error.response.data) {
+			console.error("Error uploading file:", error);
+
+			if (error.message) {
+				setErrorMessage(error.message);
+			} else if (error.response?.data?.error) {
 				setErrorMessage(error.response.data.error);
 			} else {
 				setErrorMessage("An error occurred while uploading the file.");
 			}
+		} finally {
 			setIsConverting(false);
 		}
 	};
 
+	const toggleEmbedCode = (event) => {
+		event.preventDefault();
+		const button = event.target;
+		const fontItem = button.parentElement.parentElement;
+
+		const uploadFont = fontItem.querySelector(".upload-font");
+		uploadFont.classList.toggle("hidden");
+
+		const embedCode = fontItem.querySelector(".embed-code");
+		embedCode.classList.toggle("hidden");
+	};
+
+	const handleFontUpload = async (event) => {
+		event.preventDefault();
+
+		const form = event.target;
+		const fontItems = form.querySelectorAll(".font-item");
+
+		const formDataArray = [];
+
+		fontItems.forEach((fontItem) => {
+			const formData = new FormData();
+
+			const fontName = fontItem.querySelector(".font-name").textContent;
+			formData.append("name", fontName);
+
+			const inputs = fontItem.querySelectorAll("input");
+			inputs.forEach((input) => {
+				const inputName = input.name;
+				const inputType = input.type;
+
+				if (inputName === "font-upload" && input.files.length > 0) {
+					const file = input.files[0];
+					formData.append("file", file);
+				} else if (inputType === "checkbox") {
+					formData.append(inputName, input.checked);
+				}
+			});
+
+			const fontStyleSelect = fontItem.querySelector("select[name='font-style']");
+			if (fontStyleSelect) formData.append("font-style", fontStyleSelect.value);
+
+			formData.append("htmlFolder", htmlFolder);
+
+			formDataArray.push(formData);
+		});
+
+		const response = await api.addFonts(formDataArray);
+		if (response.data.downloadPath) {
+			setSuccessMessage("Word document processed successfully!");
+			setDownloadLink(response.data.downloadPath);
+			setFontsNotFound(null);
+		}
+	};
+
+	// Render components
+	const renderErrorMessage = () =>
+		errorMessage && (
+			<p className="bg-grapefruit-20 py-2 px-4 rounded-md mt-4 border border-grapefruit-100">
+				{errorMessage}
+			</p>
+		);
+
+	const renderFileInput = () => (
+		<div className="mt-4">
+			<input
+				type="file"
+				accept=".docx"
+				className="border-dashed border-navy-100 border-2 p-8 w-full rounded-lg bg-slate-100 cursor-pointer hover:bg-navy-20 transition-all"
+				onChange={handleFileChange}
+				id="file"
+			/>
+			<button
+				className="text-sm text-slate-600 block ml-auto mt-2"
+				onClick={() => clearInput("file")}
+				type="button"
+			>
+				Clear
+			</button>
+		</div>
+	);
+
+	const renderTemplateCheckbox = () => (
+		<div className="flex items-center mb-4 gap-2">
+			<input
+				type="checkbox"
+				className="w-4 h-4 cursor-pointer"
+				id="template"
+				onChange={(e) => setShowDocumentOptions(e.target.checked)}
+			/>
+			<label htmlFor="template" className="text-charcoal-100 cursor-pointer">
+				Include template code
+			</label>
+		</div>
+	);
+
+	const renderDocumentOptions = () =>
+		showDocumentOptions && (
+			<div className="ml-8 mb-8 grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-100 p-4 rounded-lg">
+				<div className="flex flex-col gap-1">
+					<label
+						htmlFor="document-title"
+						className="text-charcoal-100 cursor-pointer text-sm"
+					>
+						Document title
+					</label>
+					<input
+						type="text"
+						id="document-title"
+						className="border border-slate-500 rounded-md px-2 py-1 w-full"
+						placeholder="Enter document title"
+					/>
+				</div>
+				<div className="flex flex-col gap-1">
+					<label htmlFor="favicon" className="text-charcoal-100 cursor-pointer text-sm">
+						Favicon
+					</label>
+					<input
+						type="file"
+						accept=".png,.jpg,.jpeg,.ico"
+						className="border-dashed border-navy-100 border p-4 w-full rounded-lg bg-white cursor-pointer hover:bg-navy-20 transition-all text-sm"
+						id="favicon"
+						onChange={handleFileChange}
+					/>
+					<button
+						className="text-sm text-slate-600 block ml-auto mt-1"
+						onClick={() => clearInput("favicon")}
+						type="button"
+					>
+						Clear
+					</button>
+				</div>
+			</div>
+		);
+
+	const renderCheckbox = ({ id, label, name, defaultChecked = false }) => {
+		return (
+			<div className="flex items-center my-4 gap-2">
+				<input
+					type="checkbox"
+					className="w-4 h-4"
+					id={id}
+					name={name}
+					defaultChecked={defaultChecked}
+				/>
+				<label htmlFor={id} className="text-charcoal-100 cursor-pointer">
+					{label}
+				</label>
+			</div>
+		);
+	};
+
+	const renderSubmitButton = () => (
+		<button className="button button--grapefruit mt-4" disabled={isConverting} type="submit">
+			{isConverting ? "Converting..." : "Convert"}
+		</button>
+	);
+
+	const renderFontInputs = ({ name, bold, italic }) => {
+		const slug = name.toLowerCase().replace(/\s+/g, "-");
+		return (
+			<div className="bg-slate-200 p-4 rounded-lg">
+				<div className="flex items-center justify-between">
+					<p className="font-name font-bold w-32">{name}</p>
+					<button
+						className="text-sm underline text-charcoal-100"
+						onClick={toggleEmbedCode}
+						type="button"
+					>
+						Embed code
+					</button>
+				</div>
+				<div className="upload-font flex items-start gap-4 mt-4">
+					<div className="flex flex-col gap-1">
+						<label htmlFor="font" className="text-charcoal-100 cursor-pointer text-sm">
+							Upload a .ttf or .otf file
+						</label>
+						<input
+							type="file"
+							accept=".ttf,.otf"
+							className="border-dashed border-navy-100 border p-2 rounded-lg bg-white cursor-pointer hover:bg-navy-20 transition-all text-sm "
+							id={`${slug}-font-upload`}
+							onChange={handleFileChange}
+							name="font-upload"
+						/>
+					</div>
+					<div className="self-center mt-5">
+						{renderCheckbox({
+							id: `${slug}-font-bold`,
+							label: "Bold",
+							name: "bold",
+							defaultChecked: bold
+						})}
+					</div>
+					<div className="self-center mt-5">
+						{renderCheckbox({
+							id: `${slug}-font-italic`,
+							label: "Italic",
+							name: "italic",
+							defaultChecked: italic
+						})}
+					</div>
+					<div className="flex flex-col gap-1">
+						<label
+							htmlFor={`${slug}-font-style`}
+							className="text-charcoal-100 cursor-pointer text-sm"
+						>
+							Font style
+						</label>
+						<select
+							className="w-52 border border-white p-2 rounded-lg bg-white cursor-pointer text-sm"
+							id={`${slug}-font-style`}
+							name="font-style"
+						>
+							<option value="serif">Serif</option>
+							<option value="sans-serif">Sans serif</option>
+							<option value="'Brush Script MT', sans-serif">Script</option>
+							<option value="monospace">Monospace</option>
+						</select>
+					</div>
+				</div>
+				<div className="embed-code mt-4 hidden">
+					<label htmlFor={`${slug}-embed-code`} className="text-sm text-charcoal-100">
+						Embed code
+					</label>
+					<textarea
+						id={`${slug}-embed-code`}
+						spellCheck="false"
+						rows="3"
+						className="w-full font-mono text-xs p-3 rounded-md border border-gray-300 shadow-sm focus:ring-2 resize-y"
+					></textarea>
+				</div>
+			</div>
+		);
+	};
+
 	return (
-		<div className="max-w-4xl mx-auto px-4">
+		<div className="max-w-4xl mx-auto px-4 mb-20">
 			<Header title="Word to HTML" />
 			<h1 className="heading-1 mt-40 mb-10">Word to HTML</h1>
 			<ServerConnection />
+
 			<div className="text-charcoal-100 mb-8">
 				<p>Upload a Word Document (.docx) to convert it into a HTML file.</p>
 				<p className="mt-2">Make sure that:</p>
@@ -88,40 +404,20 @@ const Page = ({}) => {
 			</div>
 
 			<p className="font-bold">Input a Word document below:</p>
-			{errorMessage && (
-				<p className="bg-grapefruit-20 py-2 px-4 rounded-md mt-4 border border-grapefruit-100">
-					{errorMessage}
-				</p>
-			)}
+
+			{renderErrorMessage()}
 
 			<form onSubmit={handleSubmit}>
-				<input
-					type="file"
-					accept=".docx"
-					className="border-dashed border-navy-100 border-2 p-8 w-full rounded-lg bg-slate-100 mt-4 cursor-pointer hover:bg-navy-20 transition-all"
-					onChange={handleFileChange}
-				/>
+				{renderFileInput()}
+				{renderTemplateCheckbox()}
+				{renderDocumentOptions()}
 
-				<div className="flex items-center my-4 gap-2">
-					<input type="checkbox" className="w-4 h-4" id="template" disabled />
-					<label htmlFor="template" className="text-charcoal-100">
-						Include template code
-					</label>
-				</div>
+				{renderCheckbox({
+					id: "generate-css",
+					label: "Generate CSS"
+				})}
 
-				<div className="flex items-center my-4 gap-2">
-					<input type="checkbox" className="w-4 h-4" id="generate-css" disabled />
-					<label htmlFor="generate-css" className="text-charcoal-100">
-						Generate CSS
-					</label>
-				</div>
-
-				{!isConverting && (
-					<button className="button button--grapefruit mt-4">Convert</button>
-				)}
-				{isConverting && (
-					<span className="button button--grapefruit mt-4">Converting...</span>
-				)}
+				{renderSubmitButton()}
 			</form>
 
 			{successMessage && (
@@ -131,8 +427,37 @@ const Page = ({}) => {
 					message={successMessage}
 				/>
 			)}
+
+			{fontsNotFound && (
+				<div className="mt-8">
+					<h2 className="heading-2">Fonts detected</h2>
+					<p className="my-4">
+						The following fonts have been detected in the Word document, but not found
+						in the database.
+						<br />
+						Please upload the font files here:
+					</p>
+					<form onSubmit={handleFontUpload}>
+						<ul className="grid gap-2">
+							{fontsNotFound.map((font) => {
+								return (
+									<li key={font.name} className="font-item">
+										{renderFontInputs({
+											name: font.name,
+											bold: font.bold,
+											italic: font.italic
+										})}
+									</li>
+								);
+							})}
+						</ul>
+
+						<button className="my-8 button button--grapefruit">Add fonts</button>
+					</form>
+				</div>
+			)}
 		</div>
 	);
 };
 
-export default Page;
+export default WordToHtmlPage;

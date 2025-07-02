@@ -1,5 +1,6 @@
 const express = require("express");
 const fs = require("fs");
+const fileSystem = require("../utils/fileSystem");
 
 class GetController {
 	constructor(app) {
@@ -16,6 +17,7 @@ class GetController {
 	routes() {
 		this.router.get("/download/:file", this.downloadFile.bind(this));
 		this.router.get("/check-connection", this.checkConnection.bind(this));
+		this.router.get("/files", this.getServerFiles.bind(this));
 	}
 
 	async downloadFile(req, res) {
@@ -52,6 +54,26 @@ class GetController {
 		} catch (error) {
 			console.error("Error checking connection:", error);
 			res.status(500).json({ error: "Server is not reachable" });
+		}
+	}
+
+	async getServerFiles(req, res) {
+		try {
+			const folders = await fileSystem.getSubFilesAndFolders("server/lib");
+
+			const files = [];
+			for (const folder of folders) {
+				const libFolderPath = `server/lib/${folder}`;
+				const subFiles = await fileSystem.getSubFilesAndFolders(libFolderPath);
+				files.push({
+					folder,
+					files: subFiles
+				});
+			}
+			res.status(200).json(files);
+		} catch (error) {
+			console.error("Error fetching server files:", error);
+			res.status(500).json({ error: "Failed to fetch server files" });
 		}
 	}
 }

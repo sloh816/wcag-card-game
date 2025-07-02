@@ -135,4 +135,9 @@ const getDirectusLink = (collection = null, id = null) => {
 	return `${directusUrl}/admin/content/${link}`;
 };
 
-export { styleGuide, userTesting, getImageSrc, getDirectusLink };
+const getFonts = () => {
+	const response = directus.request(readItems("fonts"));
+	return response;
+};
+
+export { styleGuide, userTesting, getImageSrc, getDirectusLink, getFonts };
