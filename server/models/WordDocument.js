@@ -220,6 +220,15 @@ class WordDocument {
 					styleIdSet.add(styleId);
 				}
 			});
+
+			// get all the table styles from the document.xml file
+			$("w\\:tblStyle").each((_, style) => {
+				let styleId = $(style).attr("w:val");
+				if (styleId) {
+					styleIdSet.add(styleId + "---table");
+				}
+			});
+
 			const styleIds = Array.from(styleIdSet);
 
 			const stylesCss = this.generateCssObjects(styleIds, stylesXml.object);
@@ -389,8 +398,9 @@ class WordDocument {
 	}
 
 	getCssFromStyleData(style) {
-		const css = {};
+		const isTable = style["$"]["w:type"] === "table";
 
+		const css = {};
 		// margin and padding
 		const spacingBefore = style["w:pPr"]?.[0]?.["w:spacing"]?.[0]?.["$"]["w:before"];
 		if (spacingBefore) {
@@ -420,11 +430,7 @@ class WordDocument {
 		// colour
 		const colour = style["w:rPr"]?.[0]?.["w:color"]?.[0]?.["$"]["w:val"];
 		if (colour) {
-			if (colour === "auto") {
-				css["color"] = "inherit"; // Use inherit for auto color
-			} else {
-				css["color"] = `#${colour}`;
-			}
+			css["color"] = this.colorFromWordColor(colour, "inherit");
 		}
 
 		// underline
@@ -455,12 +461,8 @@ class WordDocument {
 		// borders
 		const borderBottom = style["w:pPr"]?.[0]?.["w:pBdr"]?.[0]?.["w:bottom"]?.[0]?.["$"];
 		if (borderBottom) {
-			const width = borderBottom["w:sz"]
-				? Math.round((borderBottom["w:sz"] / 8) * 1.33) + "px"
-				: "1px";
-
-			const color =
-				borderBottom["w:color"] !== "auto" ? `#${borderBottom["w:color"]}` : "black";
+			const width = this.pxFromWordSz(borderBottom["w:sz"]);
+			const color = this.colorFromWordColor(borderBottom["w:color"]);
 
 			css["border-bottom"] = `${width} solid ${color}`;
 		}
@@ -469,6 +471,162 @@ class WordDocument {
 		const fontFamily = style["w:rPr"]?.[0]?.["w:rFonts"]?.[0]?.["$"]["w:ascii"];
 		if (fontFamily) {
 			css["font-family"] = `'${fontFamily.replace(/['"]/g, "")}'`;
+		}
+
+		if (isTable) {
+			const getTableCssOject = (tableCss, childSelector) => {
+				const existingStyle = tableCss.find((css) =>
+					childSelector === ""
+						? !css["child-selector"]
+						: css["child-selector"] === childSelector
+				);
+
+				return {
+					object: existingStyle ? existingStyle : { "child-selector": childSelector },
+					exists: !!existingStyle,
+					original: existingStyle ? existingStyle : {}
+				};
+			};
+
+			const addToTableStyle = (tableCss, style) => {
+				if (style.exists) {
+					Object.assign(style.original, style.object);
+				} else {
+					tableCss.push(style.object);
+				}
+			};
+
+			// console.dir(style, { depth: null });
+
+			const tableCss = [];
+			css["border-collapse"] = "collapse"; // Add border-collapse for tables
+			css["width"] = "100%";
+			tableCss.push(css);
+
+			// add default table styles
+			tableCss.push({
+				"child-selector": "th",
+				"text-align": "left"
+			});
+
+			// cell padding
+			const hasCellMargin = style["w:tblPr"]?.[0]?.["w:tblCellMar"];
+			if (hasCellMargin) {
+				const tdStyle = getTableCssOject(tableCss, "td");
+
+				const addCellPadding = (side) => {
+					const cellMargin = hasCellMargin?.[0]?.[`w:${side}`]?.[0]?.["$"]["w:w"];
+					if (cellMargin) {
+						const cellMarginPx = Math.round((cellMargin / 20) * 1.33) + "px";
+						tdStyle.object[`padding-${side}`] = cellMarginPx;
+					}
+				};
+
+				addCellPadding("top");
+				addCellPadding("bottom");
+				addCellPadding("left");
+				addCellPadding("right");
+
+				// replace the existing td style or add a new one
+				addToTableStyle(tableCss, tdStyle);
+			}
+
+			// table borders
+			const hasTableBorders = style["w:tblPr"]?.[0]?.["w:tblBorders"];
+			if (hasTableBorders) {
+				const addBorderStyle = (side, selector, cssProperty) => {
+					const style = getTableCssOject(tableCss, selector);
+					const tableBorder = hasTableBorders[0][`w:${side}`]?.[0]?.["$"];
+					if (tableBorder) {
+						const width = this.pxFromWordSz(tableBorder["w:sz"]);
+						const color = this.colorFromWordColor(tableBorder["w:color"]);
+						style.object[cssProperty] = `${width} solid ${color}`;
+						addToTableStyle(tableCss, style);
+					}
+				};
+
+				addBorderStyle("bottom", "", "border-bottom");
+				addBorderStyle("top", "", "border-top");
+				addBorderStyle("left", "", "border-left");
+				addBorderStyle("right", "", "border-right");
+				addBorderStyle("insideH", "tr:not(:last-child) td", "border-bottom");
+				addBorderStyle("insideV", "tr td:not(:last-child)", "border-right");
+			}
+
+			// heading styles
+			const getTablePropObject = (type) => {
+				const hasProperty = style["w:tblStylePr"]?.find(
+					(property) => property["$"]?.["w:type"] === type
+				);
+				return hasProperty ? hasProperty : null;
+			};
+
+			const hasTableHeaderStyle = getTablePropObject("firstRow");
+			if (hasTableHeaderStyle) {
+				const thStyle = getTableCssOject(tableCss, "th");
+
+				const textAlign = hasTableHeaderStyle["w:pPr"]?.[0]?.["w:jc"]?.[0]?.["$"]["w:val"];
+				if (textAlign) {
+					thStyle.object["text-align"] = textAlign;
+				}
+
+				const backgroundColor =
+					hasTableHeaderStyle["w:tcPr"]?.[0]?.["w:shd"]?.[0]?.["$"]["w:fill"];
+				if (backgroundColor) {
+					thStyle.object["background-color"] = `#${backgroundColor}`;
+				}
+
+				const textColor =
+					hasTableHeaderStyle["w:rPr"]?.[0]?.["w:color"]?.[0]?.["$"]["w:val"];
+				if (textColor) {
+					thStyle.object["color"] = `#${textColor}`;
+				}
+
+				const fontBold = hasTableHeaderStyle["w:rPr"]?.[0]?.["w:b"];
+				if (fontBold) {
+					thStyle.object["font-weight"] = "bold";
+				} else {
+					thStyle.object["font-weight"] = "normal";
+				}
+
+				addToTableStyle(tableCss, thStyle);
+			}
+
+			// band shading
+			const hasOddBanding = getTablePropObject("band1Horz");
+			if (hasOddBanding) {
+				const rowStyle = getTableCssOject(tableCss, "tr:nth-child(odd)");
+				// console.dir(hasOddBanding, { depth: null });
+				const oddBandingStyle = hasOddBanding["w:tcPr"]?.[0]?.["w:shd"]?.[0]?.["$"];
+				const backgroundColor = oddBandingStyle?.["w:fill"];
+				rowStyle.object["background-color"] = `#${backgroundColor}`;
+				addToTableStyle(tableCss, rowStyle);
+			}
+
+			const hasEvenBanding = getTablePropObject("band2Horz");
+			if (hasEvenBanding) {
+				const rowStyle = getTableCssOject(tableCss, "tr:nth-child(even)");
+				const evenBandingStyle = hasEvenBanding["w:tcPr"]?.[0]?.["w:shd"]?.[0]?.["$"];
+				const backgroundColor = evenBandingStyle?.["w:fill"];
+				rowStyle.object["background-color"] = `#${backgroundColor}`;
+				addToTableStyle(tableCss, rowStyle);
+			}
+
+			// first column
+			const hasFirstColumn = getTablePropObject("firstCol");
+			if (hasFirstColumn) {
+				const firstColStyle = getTableCssOject(tableCss, "tr td:nth-child(1)");
+				const isBold = hasFirstColumn["w:rPr"]?.[0]?.["w:b"];
+				if (isBold) {
+					firstColStyle.object["font-weight"] = "bold";
+				} else {
+					firstColStyle.object["font-weight"] = "normal";
+				}
+
+				addToTableStyle(tableCss, firstColStyle);
+			}
+
+			return tableCss;
 		}
 
 		return css;
@@ -493,6 +651,11 @@ class WordDocument {
 		const styleCssObject = [];
 		styleIds.forEach((id) => {
 			const isNumberList = id.endsWith("---numberbullet");
+			const isTableStyle = id.endsWith("---table");
+
+			if (isTableStyle) {
+				id = id.replace("---table", "");
+			}
 
 			if (isNumberList) {
 				id = id.replace("---numberbullet", "");
@@ -512,70 +675,90 @@ class WordDocument {
 				basedOnStyles.reverse().forEach((basedOnId) => {
 					const basedOnStyle = this.getStyleData(basedOnId, stylesObjectFromXml);
 					const css = this.getCssFromStyleData(basedOnStyle);
+
+					// if css is an array of objects, add each object to the cssObjects array
 					cssObjects.push(css);
 				});
-				const css = Object.assign({}, ...cssObjects); // merge the CSS objects
 
-				// if styleId is hyperlink, add <a> tag
-				let selector = "." + className;
-
-				if (id === "Hyperlink") {
-					selector = selector + ", a:not([class^=toc] a)";
-				}
-
-				// if style is TOC, apply it to the <a> tag
-				if (id.startsWith("TOC")) {
-					css["display"] = "block";
-
-					styleCssObject.push({
-						id,
-						name,
-						selector: selector + " a",
-						css
+				if (isTableStyle) {
+					const mergedCssArray = this.mergeMultipleArraysByChildSelector(cssObjects);
+					mergedCssArray.forEach((css) => {
+						// if css object has a child-selector, add it to the selector
+						const selector = css["child-selector"]
+							? "." + className + " " + css["child-selector"]
+							: "." + className;
+						delete css["child-selector"]; // remove child-selector from the css object
+						styleCssObject.push({
+							id,
+							name,
+							selector,
+							css: css
+						});
 					});
+				} else {
+					const css = Object.assign({}, ...cssObjects); // merge the CSS objects
 
-					return;
-				}
+					// if styleId is hyperlink, add <a> tag
+					let selector = "." + className;
 
-				// if style is spacer, calculate height based on margins and font size
-				if (className === "spacer") {
-					const marginTop = css["margin-top"].replace("px", "") || 0;
-					const marginBottom = css["margin-bottom"].replace("px", "") || 0;
-					const fontSize = css["font-size"].replace("px", "") || 0;
+					if (id === "Hyperlink") {
+						selector = selector + ", a:not([class^=toc] a)";
+					}
 
-					const height =
-						parseInt(marginTop) + parseInt(marginBottom) + parseInt(fontSize);
+					// if style is TOC, apply it to the <a> tag
+					if (id.startsWith("TOC")) {
+						css["display"] = "block";
 
-					delete css["margin-top"];
-					delete css["margin-bottom"];
-					delete css["font-size"];
-					delete css["color"];
+						styleCssObject.push({
+							id,
+							name,
+							selector: selector + " a",
+							css
+						});
 
-					css["height"] = height + "px";
-					css["width"] = "100%";
-				}
+						return;
+					}
 
-				// if is number bullet, apply text-indent to margin-left
-				if (isNumberList) {
-					const textIndent = css["text-indent"].replace("px", "") || 0;
-					const marginLeft = css["margin-left"]
-						? css["margin-left"].replace("px", "")
-						: 0;
+					// if style is spacer, calculate height based on margins and font size
+					if (className === "spacer") {
+						const marginTop = css["margin-top"].replace("px", "") || 0;
+						const marginBottom = css["margin-bottom"].replace("px", "") || 0;
+						const fontSize = css["font-size"].replace("px", "") || 0;
 
-					const newMarginLeft = parseInt(marginLeft) + parseInt(textIndent) + "px";
+						const height =
+							parseInt(marginTop) + parseInt(marginBottom) + parseInt(fontSize);
 
-					css["margin-left"] = newMarginLeft;
-					delete css["text-indent"];
-				}
+						delete css["margin-top"];
+						delete css["margin-bottom"];
+						delete css["font-size"];
+						delete css["color"];
 
-				// if css object is not empty...
-				if (Object.keys(css).length !== 0) {
-					styleCssObject.push({
-						id,
-						name,
-						selector,
-						css
-					});
+						css["height"] = height + "px";
+						css["width"] = "100%";
+					}
+
+					// if is number bullet, apply text-indent to margin-left
+					if (isNumberList) {
+						const textIndent = css["text-indent"].replace("px", "") || 0;
+						const marginLeft = css["margin-left"]
+							? css["margin-left"].replace("px", "")
+							: 0;
+
+						const newMarginLeft = parseInt(marginLeft) + parseInt(textIndent) + "px";
+
+						css["margin-left"] = newMarginLeft;
+						delete css["text-indent"];
+					}
+
+					// if css object is not empty...
+					if (Object.keys(css).length !== 0) {
+						styleCssObject.push({
+							id,
+							name,
+							selector,
+							css
+						});
+					}
 				}
 			}
 		});
@@ -589,6 +772,31 @@ class WordDocument {
 		const object = await parser.parseStringPromise(xmlContent);
 
 		return { object, content: xmlContent };
+	}
+
+	mergeMultipleArraysByChildSelector(arrayOfArrays) {
+		const mergedMap = new Map();
+
+		const addToMap = (obj) => {
+			const key = obj["child-selector"] || "__no_selector__";
+			if (!mergedMap.has(key)) {
+				mergedMap.set(key, { ...obj });
+			} else {
+				Object.assign(mergedMap.get(key), obj);
+			}
+		};
+
+		arrayOfArrays.flat().forEach(addToMap);
+
+		return Array.from(mergedMap.values());
+	}
+
+	pxFromWordSz(sz, factor = 8) {
+		return sz ? Math.round((sz / factor) * 1.33) + "px" : "1px";
+	}
+
+	colorFromWordColor(color, autoColor = "black") {
+		return color !== "auto" ? `#${color}` : autoColor;
 	}
 
 	// #endregion

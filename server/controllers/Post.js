@@ -88,7 +88,7 @@ class PostController {
 			const fontsNotFound = [];
 			if (generateCss) {
 				const fontsInWord = await wordDocument.getFonts();
-				console.log(fontsInWord);
+				// console.log(fontsInWord);
 
 				if (fontsInWord.length > 0) {
 					for (const font of fontsInWord) {
