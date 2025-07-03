@@ -473,6 +473,8 @@ class WordDocument {
 			css["font-family"] = `'${fontFamily.replace(/['"]/g, "")}'`;
 		}
 
+		// fill
+
 		if (isTable) {
 			const getTableCssOject = (tableCss, childSelector) => {
 				const existingStyle = tableCss.find((css) =>
@@ -739,7 +741,7 @@ class WordDocument {
 
 					// if is number bullet, apply text-indent to margin-left
 					if (isNumberList) {
-						const textIndent = css["text-indent"].replace("px", "") || 0;
+						const textIndent = css["text-indent"]?.replace("px", "") || 0;
 						const marginLeft = css["margin-left"]
 							? css["margin-left"].replace("px", "")
 							: 0;
@@ -770,7 +772,6 @@ class WordDocument {
 		const parser = new xml2js.Parser();
 		const xmlContent = await fileSystem.readFile(filePath);
 		const object = await parser.parseStringPromise(xmlContent);
-
 		return { object, content: xmlContent };
 	}
 

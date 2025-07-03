@@ -219,9 +219,9 @@ class Html {
 		});
 
 		// unwrap <img> tags from <p> tags
-		$("p > img").each((_, img) => {
-			$(img).unwrap();
-		});
+		// $("p > img").each((_, img) => {
+		// 	$(img).unwrap();
+		// });
 
 		// add an aria label to the footnote back button
 		$("a[href^=#footnote]").each((_, a) => {
@@ -260,8 +260,11 @@ class Html {
 				$(table)
 					.find("tr")
 					.each((_, tr) => {
-						const rowDiv = $("<div></div>").addClass(className + "__row");
+						const rowDiv = $("<div style='display:grid;'></div>").addClass(
+							className + "__row"
+						);
 
+						let colCount = 0;
 						$(tr)
 							.find("td, th")
 							.each((_, cell) => {
@@ -270,8 +273,10 @@ class Html {
 								);
 								cellDiv.html($(cell).html());
 								rowDiv.append(cellDiv);
+								colCount++;
 							});
 
+						rowDiv.css({ "grid-template-columns": `repeat(${colCount}, auto)` });
 						tableDiv.append(rowDiv);
 					});
 
