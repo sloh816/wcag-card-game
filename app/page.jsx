@@ -17,6 +17,15 @@ const HomePage = ({}) => {
 		{
 			title: "Easy Read Database",
 			description: "Search for images and text from all our past Easy Read content."
+		},
+		{
+			title: "Checklists",
+			description: "A collection of checklists for our internal processes."
+		},
+		{
+			title: "Web Dev Issue Log",
+			description: "A log of issues and tasks for web development requests.",
+			link: "http://192.168.2.228:8055/admin/content/web_dev_log_item"
 		}
 	];
 
@@ -46,9 +55,10 @@ const HomePage = ({}) => {
 		},
 
 		{
-			title: "Web Audit Report Generator",
+			title: "Web Audit Report Builder",
 			description:
-				"Record the issues of your website audit and generate a Word and HTML report."
+				"Record the issues of your website audit and generate a Word and HTML report.",
+			link: "/web-audit-reports"
 		}
 	];
 
@@ -60,7 +70,7 @@ const HomePage = ({}) => {
 			</header>
 			<main className="px-12 container mb-20">
 				<h2 className="heading-2 mb-2">Databases</h2>
-				<ul className="flex gap-4">
+				<ul className="flex gap-4 flex-wrap">
 					{databases.map((tool) => {
 						return (
 							<li key={tool.title}>

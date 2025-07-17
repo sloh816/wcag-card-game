@@ -1,4 +1,4 @@
-import { createDirectus, rest, readItems } from "@directus/sdk";
+import { createDirectus, rest, readItems, readItem } from "@directus/sdk";
 
 const directusUrl = process.env.NEXT_PUBLIC_DIRECTUS_URL;
 if (!directusUrl) {
@@ -123,6 +123,38 @@ const userTesting = {
 	}
 };
 
+const webAudit = {
+	getReports: async () => {
+		const reports = await directus.request(readItems("web_audit_reports"));
+		return reports.map((report) => ({
+			...report,
+			directusLink: `${directusUrl}/admin/content/web_audit_reports/${report.id}`
+		}));
+	},
+
+	getReportById: async (id) => {
+		const report = await directus.request(readItem("web_audit_reports", id));
+		return {
+			...report,
+			directusLink: `${directusUrl}/admin/content/web_audit_reports/${report.id}`
+		};
+	},
+
+	getWebpagesByReportId: async (reportId) => {
+		const webpages = await directus.request(
+			readItems("web_audit_webpages", {
+				filter: {
+					report: {
+						_eq: reportId
+					}
+				}
+			})
+		);
+
+		return webpages;
+	}
+};
+
 const getImageSrc = (imageId) => {
 	return `${directusUrl}/assets/${imageId}`;
 };
@@ -140,4 +172,4 @@ const getFonts = () => {
 	return response;
 };
 
-export { styleGuide, userTesting, getImageSrc, getDirectusLink, getFonts };
+export { styleGuide, userTesting, webAudit, getImageSrc, getDirectusLink, getFonts };
