@@ -1,16 +1,17 @@
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
+const { createServer } = require("node:http");
+const path = require("node:path");
+require("dotenv").config({ path: "./.env.local" });
 
-const PostController = require("./controllers/Post");
-const ServeController = require("./controllers/Serve");
-const GetController = require("./controllers/Get");
-const DeleteController = require("./controllers/Delete");
+const SocketController = require("./controllers/SocketIo");
 
-class Server {
+class Express {
 	constructor(port) {
 		this.app = express();
 		this.port = port;
+		this.server = createServer(this.app);
 		this.config();
 		this.routes();
 	}
@@ -24,21 +25,27 @@ class Server {
 	// load routes from controllers
 	routes() {
 		try {
-			new PostController(this.app);
-			new GetController(this.app);
-			new ServeController(this.app);
-			new DeleteController(this.app);
+			this.app.get("/", (req, res) => {
+				const indexPath = path.join(__dirname, "index.html");
+				res.sendFile(indexPath);
+			});
+
+			this.app.get("/check-connection", (req, res) => {
+				res.status(200).json({ message: "Connection successful" });
+			});
+
+			new SocketController(this.server);
 		} catch (error) {
 			console.error("Error loading routes:", error);
 		}
 	}
 
 	start() {
-		this.app.listen(this.port, "127.0.0.1", () => {
+		this.server.listen(this.port, () => {
 			console.log(`Server listening on port ${this.port}`);
 		});
 	}
 }
 
-const server = new Server(4001);
+const server = new Express(process.env.SERVER_PORT);
 server.start();

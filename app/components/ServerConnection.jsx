@@ -22,14 +22,13 @@ const ServerConnection = ({}) => {
 	return (
 		<div>
 			{serverConnection === "checking" && (
-				<p className="bg-honey-20 py-2 px-4 rounded-md mt-4 border border-honey-100 mb-8">
+				<p className="bg-orange-100 py-2 px-4 rounded-md mt-4 border border-orange-300 mb-8">
 					Checking server connection...
 				</p>
 			)}
 			{!serverConnection && (
-				<p className="bg-grapefruit-20 py-2 px-4 rounded-md mt-4 border border-grapefruit-100 mb-8">
-					Server is not reachable 😭😭😭 Please start the server (or ask Shannon to, she
-					probably forgot lmao)
+				<p className="bg-red-100 py-2 px-4 rounded-md mt-4 border border-red-300 mb-8">
+					Server is not reachable 😭😭😭 Please start the server.
 				</p>
 			)}
 		</div>

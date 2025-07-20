@@ -1,8 +1,8 @@
 import "@/styles.scss";
 
 export const metadata = {
-	title: "Tools & Databases",
-	description: "Links to tools and databases for The Information Access Group."
+	title: "My App",
+	description: "A description of my app"
 };
 
 export default function RootLayout({ children }) {

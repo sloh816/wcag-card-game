@@ -1,109 +1,78 @@
 "use client";
-import Card from "@/components/Card";
-import icon from "@/assets/iag-icon.png";
+import { useEffect, useState } from "react";
+import TextInput from "./components/TextInput";
+import ServerConnection from "./components/ServerConnection";
+import api from "./lib/api";
+import Button from "./components/Button";
 
 const HomePage = ({}) => {
-	const databases = [
-		{
-			title: "Easy Read Style Guide",
-			link: "/style-guide",
-			description: "A writing style guide for IAG Easy Read content."
-		},
-		{
-			title: "User Testing Feedback",
-			link: "/user-testing",
-			description: "User testing feedback collection from our focus group testing."
-		},
-		{
-			title: "Easy Read Database",
-			description: "Search for images and text from all our past Easy Read content."
-		},
-		{
-			title: "Checklists",
-			description: "A collection of checklists for our internal processes."
-		},
-		{
-			title: "Web Dev Issue Log",
-			description: "A log of issues and tasks for web development requests.",
-			link: "http://192.168.2.228:8055/admin/content/web_dev_log_item"
-		}
-	];
+	const [nickname, setNickname] = useState("");
+	const [roomCode, setRoomCode] = useState("");
+	const [error, setError] = useState("");
 
-	const tools = [
-		{
-			title: "InDesign to Word (HTML Converter)",
-			link: "/indesign-to-word",
-			description: "Process an InDesign HTML file to copy into a Word document."
-		},
-		{
-			title: "Word to HTML",
-			description: "Generate a HTML from a Word document.",
-			link: "/word-to-html"
-		},
-		{
-			title: "PDF Strip tables",
-			description: "Strip the <Table> tags from the PDF tags. Useful for doing Easy Read FA."
-		},
-		{
-			title: "Alt Text Generator",
-			description:
-				"Write alt text for images in a Word document. Alt text suggestions are generated for images used in past Easy Read documents."
-		},
-		{
-			title: "Easy Read HTML Builder",
-			description: "Generate an Easy Read HTML from a Word or InDesign document."
-		},
+	const joinRoom = async (action) => {
+		action = action || "join";
 
-		{
-			title: "Web Audit Report Builder",
-			description:
-				"Record the issues of your website audit and generate a Word and HTML report.",
-			link: "/web-audit-reports"
+		if (!nickname) {
+			setError("Please enter a valid nickname");
+			return;
 		}
-	];
+
+		if (action === "create") {
+			const newRoomId = await api.createRoom();
+			goToRoom(newRoomId);
+		} else {
+			const newRoomCode = roomCode.trim().toUpperCase();
+			if (!newRoomCode || newRoomCode.length !== 4) {
+				setError("Please enter a valid room code");
+				return;
+			}
+			goToRoom(newRoomCode);
+		}
+	};
+
+	const goToRoom = (code) => {
+		const url = `${process.env.NEXT_PUBLIC_CLIENT_URL}/room/${code}?nickname=${nickname}`;
+		window.location.href = url;
+	};
 
 	return (
-		<>
-			<header className="px-12 flex gap-4 flex-col items-center mt-20 mb-12 container">
-				<img src={icon.src} alt="IAG Icon" className="w-16" />
-				<h1 className="font-bold text-navy-100 text-3xl">Tools & Databases</h1>
-			</header>
-			<main className="px-12 container mb-20">
-				<h2 className="heading-2 mb-2">Databases</h2>
-				<ul className="flex gap-4 flex-wrap">
-					{databases.map((tool) => {
-						return (
-							<li key={tool.title}>
-								<Card
-									title={tool.title}
-									link={tool.link}
-									description={tool.description}
-									icon={tool.icon}
-									disabled={tool.disabled ? tool.disabled : false}
-								/>
-							</li>
-						);
-					})}
-				</ul>
+		<div className="bg-sky-50 h-screen grid place-items-center">
+			<main className="max-w-80 w-full mx-auto p-4">
+				<h1 className="font-bold text-3xl text-center">WCAG Card Game</h1>
+				<ServerConnection />
+				<form className="mt-10 flex flex-col items-stretch gap-4">
+					<TextInput
+						value={nickname}
+						label="Enter your nickname"
+						changeFunction={setNickname}
+						name="nickname"
+					/>
 
-				<h2 className="heading-2 mb-2 mt-12">Tools</h2>
-				<ul className="flex gap-4 flex-wrap">
-					{tools.map((tool) => {
-						return (
-							<li key={tool.title}>
-								<Card
-									title={tool.title}
-									link={tool.link}
-									description={tool.description}
-									icon={tool.icon}
-									disabled={tool.disabled ? tool.disabled : false}
-								/>
-							</li>
-						);
-					})}
-				</ul>
+					<TextInput
+						value={roomCode}
+						label="Enter a room code"
+						changeFunction={setRoomCode}
+						name="roomCode"
+					/>
+
+					{error && (
+						<p className="text-red-600 bg-red-100 border border-red-300 px-2 py-1 rounded-lg font-bold text-sm">
+							{error}
+						</p>
+					)}
+
+					<div className="flex flex-col gap-4 mt-4">
+						<Button label="Join room" onClickFunc={() => joinRoom()} />
+						<Button
+							label="Create a room"
+							onClickFunc={() => joinRoom("create")}
+							styleType="secondary"
+						/>
+					</div>
+				</form>
 			</main>
-		</>
+		</div>
 	);
 };
 
