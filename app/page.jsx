@@ -47,7 +47,9 @@ const HomePage = ({}) => {
                     {error && <p className="text-red-600 bg-red-100 border border-red-300 px-2 py-1 rounded-md font-bold text-sm">{error}</p>}
                     <TextInput value={nickname} label="Enter your nickname" changeFunction={setNickname} name="nickname" />
                     <div className="flex flex-col gap-6 mt-4">
-                        <Button label="Create a room" onClickFunc={() => createRoom()} styleType="secondary" />
+                        <Button onClickFunc={() => createRoom()} styleType="secondary">
+                            Create a room
+                        </Button>
                     </div>
                 </form>
             </main>

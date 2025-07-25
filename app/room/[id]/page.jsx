@@ -6,6 +6,7 @@ import Button from "@/components/Button";
 import Game from "@/components/Game";
 import WcagLogo from "../../assets/wcag-card-game-logo.png";
 import TextInput from "@/components/TextInput";
+import InsertLinkIcon from "@mui/icons-material/InsertLink";
 
 const Page = ({}) => {
     const { id } = useParams();
@@ -65,13 +66,11 @@ const Page = ({}) => {
                 return;
             }
 
-            if (response.success) {
-                setNickname(nickname);
-                setShowJoinForm(false);
-                setShowLobby(true);
-                setIsLoading(false);
-                setGameInProgressCannotJoin(false);
-            }
+            // if (response.success) {
+            //     setNickname(nickname);
+            //     setIsLoading(false);
+            //     setGameInProgressCannotJoin(false);
+            // }
         } catch (error) {
             console.error("Error joining room:", error);
         }
@@ -112,9 +111,17 @@ const Page = ({}) => {
         socket.on("room data", (roomData) => {
             if (roomData) {
                 setRoom(roomData);
+                setIsLoading(false);
+
+                if (!roomData.gameStarted) {
+                    setShowLobby(true);
+                } else {
+                    setShowLobby(false);
+                }
+
                 setGameInProgressCannotJoin(false);
                 setShowJoinForm(false);
-                setShowLobby(true);
+
                 console.log({ roomData, storedNickname });
             }
         });
@@ -126,7 +133,9 @@ const Page = ({}) => {
             !room.gameStarted &&
             nickname === room.admin.name && (
                 <div className="mt-8 flex flex-col gap-2">
-                    <Button label="Start Game" onClickFunc={startGame} styleType="secondary" />
+                    <Button onClickFunc={startGame} styleType="primary">
+                        Start Game
+                    </Button>
                     {startGameError && <p className="bg-red-50 text-red-700 p-2 border border-red-400 rounded-lg mt-2 text-sm font-bold">{startGameError}</p>}
                 </div>
             )
@@ -150,25 +159,6 @@ const Page = ({}) => {
                         })}
                 </ul>
             </div>
-        );
-    };
-
-    const RoomOpen = () => {
-        return !room.gameStarted ? (
-            <main className="max-w-96 w-full mx-auto p-4 h-screen grid place-items-center pb-16">
-                <div>
-                    <h1 className="flex justify-center">
-                        <img src={WcagLogo.src} alt="The WCAG Card Game" className="w-64" />
-                    </h1>
-                    <PlayersList />
-                    <StartGameButton />
-                    <a href="/" className="underline text-cyan-800 text-center mt-4 hover:no-underline block">
-                        Leave room
-                    </a>
-                </div>
-            </main>
-        ) : (
-            <Game room={room} playerName={nickname} />
         );
     };
 
@@ -217,7 +207,9 @@ const Page = ({}) => {
                         {error && <p className="text-red-600 bg-red-100 border border-red-300 px-2 py-1 rounded-md font-bold text-sm">{error}</p>}
                         <TextInput value={nickname} label="Enter your nickname" changeFunction={setNickname} name="nickname" />
                         <div className="flex flex-col gap-6 mt-4">
-                            <Button label="Join room" onClickFunc={() => handleJoinRoom()} styleType="primary" />
+                            <Button onClickFunc={() => handleJoinRoom()} styleType="primary">
+                                Join room
+                            </Button>
                         </div>
                     </form>
                 </main>
@@ -226,6 +218,15 @@ const Page = ({}) => {
     };
 
     const Lobby = () => {
+        const [copied, setCopied] = useState(false);
+
+        const copyLink = () => {
+            const roomUrl = window.location.href;
+            navigator.clipboard.writeText(roomUrl).then(() => {
+                setCopied(true);
+            });
+        };
+
         return (
             <div className="h-screen mt-20">
                 <main className="max-w-80 w-full mx-auto p-4 mb-4">
@@ -234,6 +235,13 @@ const Page = ({}) => {
                     </h1>
                     <PlayersList />
                     {room && room.admin.name === nickname && <StartGameButton />}
+                    <div className="mt-4">
+                        <Button styleType="secondary" onClickFunc={() => copyLink()}>
+                            <InsertLinkIcon />
+                            <span className="ml-2">Invite</span>
+                        </Button>
+                        {copied && <p className="bg-amber-200 text-amber-700 p-2 border border-amber-400 rounded-full mt-2 text-sm font-bold text-center">Room link copied to clipboard!</p>}
+                    </div>
                 </main>
             </div>
         );
