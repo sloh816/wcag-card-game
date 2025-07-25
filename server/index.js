@@ -5,7 +5,7 @@ const { createServer } = require("node:http");
 const path = require("node:path");
 require("dotenv").config({ path: "./.env.local" });
 
-const SocketController = require("./controllers/SocketIo");
+const SocketController = require("./controllers/SocketController");
 
 class Express {
 	constructor(port) {

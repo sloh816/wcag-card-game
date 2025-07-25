@@ -37,11 +37,47 @@ const api = {
 		return new Promise((resolve, reject) => {
 			try {
 				socket.emit("join room", roomCode, nickname);
-				socket.on("error", (errorMessage) => {
-					resolve({ error: errorMessage });
+				socket.on("error", (error) => {
+					resolve(error);
 				});
 			} catch (error) {
 				console.error("Error joining room:", error);
+				reject(error);
+			}
+		});
+	},
+
+	startGame: (roomCode) => {
+		return new Promise((resolve, reject) => {
+			try {
+				socket.emit("start game", roomCode);
+				resolve();
+			} catch (error) {
+				console.error("Error starting game:", error);
+				reject(error);
+			}
+		});
+	},
+
+	drawCard: (roomCode, playerName) => {
+		return new Promise((resolve, reject) => {
+			try {
+				socket.emit("draw card", roomCode, playerName);
+				resolve();
+			} catch (error) {
+				console.error("Error drawing card:", error);
+				reject(error);
+			}
+		});
+	},
+
+	resetGame: (roomCode) => {
+		return new Promise((resolve, reject) => {
+			try {
+				socket.emit("reset game", roomCode);
+				resolve();
+			} catch (error) {
+				console.error("Error resetting game:", error);
 				reject(error);
 			}
 		});

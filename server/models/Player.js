@@ -2,18 +2,14 @@ class Player {
 	constructor(name, socketId) {
 		this.name = name;
 		this.socketId = socketId;
-		this.isReady = false; // Indicates if the player is ready to start the game
-	}
-
-	setReady(ready) {
-		this.isReady = ready;
+		this.hand = [];
 	}
 
 	get() {
 		return {
 			name: this.name,
 			socketId: this.socketId,
-			isReady: this.isReady
+			hand: this.hand.map((card) => card.get())
 		};
 	}
 
