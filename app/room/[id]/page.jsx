@@ -132,7 +132,7 @@ const Page = ({}) => {
             room &&
             !room.gameStarted &&
             nickname === room.admin.name && (
-                <div className="mt-8 flex flex-col gap-2">
+                <div className="flex flex-col gap-2">
                     <Button onClickFunc={startGame} styleType="primary">
                         Start Game
                     </Button>
@@ -144,7 +144,7 @@ const Page = ({}) => {
 
     const PlayersList = () => {
         return (
-            <div className="mt-8">
+            <div className="my-8">
                 <h2 className="text-xl font-bold mb-4">Players in the room:</h2>
                 <ul className="list-disc pl-5">
                     {room &&
