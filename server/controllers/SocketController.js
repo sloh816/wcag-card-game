@@ -3,135 +3,149 @@ const Room = require("../models/Room");
 const Game = require("../models/Game");
 
 class SocketController {
-	constructor(server) {
-		this.server = server;
-		this.io = new Server(this.server, {
-			cors: { origin: process.env.NEXT_PUBLIC_CLIENT_URL }
-		});
-		this.rooms = {};
-		this.connect();
-	}
+    constructor(server) {
+        this.server = server;
+        this.io = new Server(this.server, {
+            cors: { origin: process.env.NEXT_PUBLIC_CLIENT_URL },
+        });
+        this.rooms = {};
+        this.connect();
+    }
 
-	connect() {
-		this.io.on("connection", (socket) => {
-			console.log("A user connected with ID:", socket.id);
+    connect() {
+        this.io.on("connection", (socket) => {
+            console.log("A user connected with ID:", socket.id);
 
-			socket.on("create room", (id) => {
-				const newRoom = new Room(id);
-				const newRoomId = newRoom.id;
-				this.rooms[newRoomId] = newRoom;
+            socket.on("get room data", (roomCode) => {
+                if (this.rooms[roomCode]) {
+                    const room = this.rooms[roomCode];
+                    socket.emit("room data", room.get());
+                } else {
+                    socket.emit("error", { roomNotFound: true, message: "Room does not exist." });
+                }
+            });
 
-				console.log(`Room created with ID: ${newRoomId}`);
-				console.log(this.rooms);
+            socket.on("create room", (id) => {
+                const newRoom = new Room(id);
+                const newRoomId = newRoom.id;
+                this.rooms[newRoomId] = newRoom;
 
-				socket.emit("room created", newRoomId);
-			});
+                console.log(`Room created with ID: ${newRoomId}`);
+                console.log(this.rooms);
 
-			socket.on("join room", (roomCode, nickname) => {
-				socket.join(roomCode);
+                socket.emit("room created", newRoomId);
+            });
 
-				// Check if the room exists
-				if (!this.roomExists(roomCode)) return;
+            socket.on("join room", (roomCode, nickname) => {
+                socket.join(roomCode);
 
-				// if the game has already started, do not allow joining
-				const room = this.rooms[roomCode];
-				if (room.gameStarted && !room.playerExists(nickname)) {
-					socket.emit("error", {
-						gameStarted: true,
-						message: "Game has already started. Cannot join."
-					});
-				} else {
-					room.addPlayer(nickname, socket.id);
-					this.emitRoomData(roomCode);
-				}
+                // Check if the room exists
+                if (!this.roomExists(roomCode)) return;
 
-				// Add the player to the room
-				console.log(`User ${nickname} joined room ${roomCode}`);
-				console.log(room.get());
-			});
+                // if the game has already started, do not allow joining
+                const room = this.rooms[roomCode];
+                if (room.gameStarted && !room.playerExists(nickname)) {
+                    socket.emit("error", {
+                        gameStarted: true,
+                        message: "Game has already started. Cannot join.",
+                    });
+                    return;
+                }
 
-			socket.on("disconnect", () => {
-				console.log(`User with ID ${socket.id} disconnected`);
-				this.leaveRoom(socket.id);
-			});
+                room.addPlayer(nickname, socket.id);
 
-			socket.on("start game", (roomCode) => {
-				// Check if the room exists
-				if (!this.roomExists(roomCode)) return;
+                socket.emit("response", {
+                    success: true,
+                    message: "Joined room successfully.",
+                });
 
-				const room = this.rooms[roomCode];
-				if (!room.gameStarted) {
-					room.gameStarted = true;
-					const game = new Game(room);
-					game.startGame();
-					room.game = game;
-					this.emitRoomData(roomCode);
-				}
-			});
+                this.emitRoomData(roomCode);
 
-			socket.on("draw card", (roomCode, playerName) => {
-				if (!this.roomExists(roomCode)) return;
+                // Add the player to the room
+                console.log(`User ${nickname} joined room ${roomCode}`);
+                console.log(room.get());
+            });
 
-				const room = this.rooms[roomCode];
-				if (room.game) {
-					const player = room.getPlayer(playerName);
-					room.game.drawCards(player);
-					console.log(room.get());
-					this.emitRoomData(roomCode);
-				}
-			});
+            socket.on("disconnect", () => {
+                console.log(`User with ID ${socket.id} disconnected`);
+                this.leaveRoom(socket.id);
+            });
 
-			socket.on("reset game", (roomCode) => {
-				if (!this.roomExists(roomCode)) return;
-				const room = this.rooms[roomCode];
-				if (room.game) {
-					room.game.startGame();
-					this.emitRoomData(roomCode);
-				}
-			});
-		});
-	}
+            socket.on("start game", (roomCode) => {
+                // Check if the room exists
+                if (!this.roomExists(roomCode)) return;
 
-	// sends the current state of the room to all clients in the room
-	emitRoomData(roomCode) {
-		if (this.rooms[roomCode]) {
-			const room = this.rooms[roomCode];
-			this.io.to(roomCode).emit("room data", room.get());
-		}
-	}
+                const room = this.rooms[roomCode];
+                if (!room.gameStarted) {
+                    room.gameStarted = true;
+                    const game = new Game(room);
+                    game.startGame();
+                    room.game = game;
+                    this.emitRoomData(roomCode);
+                }
+            });
 
-	// logic for when a player leaves/disconnects from a room
-	leaveRoom(socketId) {
-		// remove socket.id from the player's object
-		Object.keys(this.rooms).forEach((roomCode) => {
-			const room = this.rooms[roomCode];
-			const player = room.players.find((player) => player.socketId === socketId);
-			if (player) {
-				if (room.gameStarted) {
-					player.setSocketId(null);
-				} else {
-					room.removePlayer(player);
-					if (room.players.length === 0) {
-						delete this.rooms[roomCode];
-						console.log(`Room ${roomCode} has been deleted.`);
-					}
-				}
-			}
+            socket.on("draw card", (roomCode, playerName) => {
+                if (!this.roomExists(roomCode)) return;
 
-			this.emitRoomData(roomCode);
-		});
-	}
+                const room = this.rooms[roomCode];
+                if (room.game) {
+                    const player = room.getPlayer(playerName);
+                    room.game.drawCards(player);
+                    console.log(room.get());
+                    this.emitRoomData(roomCode);
+                }
+            });
 
-	// check if room exists
-	roomExists(roomCode) {
-		if (!this.rooms[roomCode]) {
-			this.io
-				.to(roomCode)
-				.emit("error", { roomNotFound: true, message: "Room does not exist." });
-			return false;
-		}
-		return true;
-	}
+            socket.on("reset game", (roomCode) => {
+                if (!this.roomExists(roomCode)) return;
+                const room = this.rooms[roomCode];
+                if (room.game) {
+                    room.game.startGame();
+                    this.emitRoomData(roomCode);
+                }
+            });
+        });
+    }
+
+    // sends the current state of the room to all clients in the room
+    emitRoomData(roomCode) {
+        if (this.rooms[roomCode]) {
+            const room = this.rooms[roomCode];
+            this.io.to(roomCode).emit("room data", room.get());
+        }
+    }
+
+    // logic for when a player leaves/disconnects from a room
+    leaveRoom(socketId) {
+        // remove socket.id from the player's object
+        Object.keys(this.rooms).forEach((roomCode) => {
+            const room = this.rooms[roomCode];
+            const player = room.players.find((player) => player.socketId === socketId);
+            if (player) {
+                if (room.gameStarted) {
+                    player.setSocketId(null);
+                } else {
+                    room.removePlayer(player);
+                    if (room.players.length === 0) {
+                        delete this.rooms[roomCode];
+                        console.log(`Room ${roomCode} has been deleted.`);
+                    }
+                }
+            }
+
+            this.emitRoomData(roomCode);
+        });
+    }
+
+    // check if room exists
+    roomExists(roomCode) {
+        if (!this.rooms[roomCode]) {
+            this.io.to(roomCode).emit("error", { roomNotFound: true, message: "Room does not exist." });
+            return false;
+        }
+        return true;
+    }
 }
 
 module.exports = SocketController;
