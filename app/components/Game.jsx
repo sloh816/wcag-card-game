@@ -1,6 +1,10 @@
 import Button from "@/components/Button";
 import api from "@/lib/api";
 import CardBack from "@/assets/card-back.png";
+import DrawPileImg from "@/assets/draw-pile.png";
+
+import PlayerHand from "@/components/PlayerHand";
+import CardImage from "./CardImage";
 
 const Game = ({ room, playerName }) => {
 	console.log(room);
@@ -49,85 +53,6 @@ const Game = ({ room, playerName }) => {
 		);
 	};
 
-	const CardDisplay = ({ imgSrc, height = "100px" }) => {
-		return (
-			<div className={`user-cards w-auto h-[${height}] rounded-lg`}>
-				<img src={imgSrc} className="object-cover w-full h-full" />
-			</div>
-		);
-	};
-
-	const HandDisplay = ({ playerName }) => {
-		const player = room.players.find((p) => p.name === playerName);
-		const cards = player ? player.hand : [];
-
-		return (
-			<ul className="flex justify-center w-full overflow-hidden">
-				{cards.map((_, index) => {
-					const totalCards = cards.length;
-
-					// Calculate overlap based on total cards
-					const calculateOverlap = (totalCards) => {
-						if (totalCards <= 3) return "ml-2";
-						if (totalCards <= 5) return "ml-1";
-						if (totalCards <= 7) return "-ml-4";
-						if (totalCards <= 10) return "-ml-6";
-						return "-ml-8"; // For more than 10 cards
-					};
-
-					const overlapAmount = calculateOverlap(totalCards);
-
-					return (
-						<li
-							key={index}
-							className={`${
-								index > 0 ? overlapAmount : ""
-							} transition-all duration-200 hover:translate-y-[-8px] hover:z-10`}
-							style={{ zIndex: index }}
-						>
-							<CardDisplay imgSrc={CardBack.src} height="100%" />
-						</li>
-					);
-				})}
-			</ul>
-		);
-	};
-
-	const HandDisplaySmall = ({ playerName }) => {
-		const player = room.players.find((p) => p.name === playerName);
-		const cards = player ? player.hand : [];
-
-		return (
-			<ul className="flex justify-center w-full overflow-hidden">
-				{cards.map((_, index) => {
-					const totalCards = cards.length;
-
-					// Calculate overlap based on total cards
-					const calculateOverlap = (totalCards) => {
-						if (totalCards <= 3) return "ml-1";
-						if (totalCards <= 7) return "-ml-4";
-						if (totalCards <= 10) return "-ml-6";
-						return "-ml-8"; // For more than 10 cards
-					};
-
-					const overlapAmount = calculateOverlap(totalCards);
-
-					return (
-						<li
-							key={index}
-							className={`${
-								index > 0 ? overlapAmount : ""
-							} transition-all duration-200 hover:translate-y-[-8px] hover:z-10`}
-							style={{ zIndex: index }}
-						>
-							<CardDisplay imgSrc={CardBack.src} height="16px" />
-						</li>
-					);
-				})}
-			</ul>
-		);
-	};
-
 	const PlayerName = ({ name, points, size = "regular" }) => {
 		const sizeClasses = {
 			small: {
@@ -159,18 +84,57 @@ const Game = ({ room, playerName }) => {
 
 	const Opponent = ({ name }) => {
 		const player = room.players.find((p) => p.name === name);
+		const cards = player ? player.hand : [];
 
 		return (
 			player && (
 				<div className="flex flex-col items-center gap-2">
 					<PlayerName name={name} points={player.points} size="small" />
-					<HandDisplaySmall playerName={name} />
+					<PlayerHand cards={cards} size="small" />
 					<div className="h-8 flex gap-2 justify-center">
-						<CardDisplay imgSrc={CardBack.src} height="100%" />
-						<CardDisplay imgSrc={CardBack.src} height="100%" />
+						<CardImage imgSrc={CardBack.src} height="h-full" />
+						<CardImage imgSrc={CardBack.src} height="h-full" />
 					</div>
 				</div>
 			)
+		);
+	};
+
+	const Player = () => {
+		const player = room.players.find((p) => p.name === playerName);
+		const cards = player ? player.hand : [];
+
+		return (
+			<div className="you flex flex-col items-center gap-2">
+				<div className="h-16 flex gap-2">
+					<CardImage imgSrc={CardBack.src} height="h-full" />
+					<CardImage imgSrc={CardBack.src} height="h-full" />
+				</div>
+				<div className="w-[300px]">
+					<PlayerHand cards={cards} />
+				</div>
+				<PlayerName name={playerName} />
+			</div>
+		);
+	};
+
+	const DrawPile = () => {
+		return (
+			<div className="relative">
+				<button
+					className="group absolute top-0 left-0 grid place-items-center"
+					onClick={() => drawCard()}
+				>
+					<div className="group-hover:translate-y-2 transition-all">
+						<CardImage imgSrc={CardBack.src} />
+					</div>
+					<p className="absolute text-nowrap bg-[#0ef375] px-4 py-2 rounded-full font-poetsen shadow-md">
+						Draw card
+					</p>
+				</button>
+
+				<CardImage imgSrc={DrawPileImg.src} height="h-[112px]" />
+			</div>
 		);
 	};
 
@@ -180,10 +144,10 @@ const Game = ({ room, playerName }) => {
 			<main className="portrait-screen landscape:hidden max-w-5xl w-full mx-auto p-4">
 				<div className="flex flex-col gap-4 mt-4">
 					<div className="flex gap-4 justify-center mb-8">
-						<CardDisplay imgSrc={CardBack.src} />
-						<CardDisplay imgSrc={CardBack.src} />
+						<DrawPile />
+						<CardImage imgSrc={CardBack.src} />
 					</div>
-					<div className="players">
+					<div className="opponents">
 						<ul className="flex justify-center flex-wrap gap-4 w-full">
 							{room.players.map((player, index) => {
 								if (player.name !== playerName) {
@@ -197,16 +161,7 @@ const Game = ({ room, playerName }) => {
 						</ul>
 					</div>
 					<GameStatus message="Shandawg is choosing a player" colour="yellow" />
-					<div className="you flex flex-col items-center gap-2">
-						<div className="h-16 flex gap-2">
-							<CardDisplay imgSrc={CardBack.src} height="100%" />
-							<CardDisplay imgSrc={CardBack.src} height="100%" />
-						</div>
-						<div className="w-[300px]">
-							<HandDisplay playerName={playerName} />
-						</div>
-						<PlayerName name={playerName} />
-					</div>
+					<Player />
 				</div>
 			</main>
 		</>
