@@ -20,18 +20,18 @@ const ServerConnection = ({}) => {
 	}, []);
 
 	return (
-		<div>
+		<>
 			{serverConnection === "checking" && (
-				<p className="bg-orange-100 py-2 px-4 rounded-md mt-4 border border-orange-300 mb-8">
-					Checking server connection...
-				</p>
+				<div className="image-bg h-screen w-screen grid place-items-center fixed top-0 left-0 z-20">
+					{<p>Checking server connection...</p>}
+				</div>
 			)}
 			{!serverConnection && (
-				<p className="bg-red-100 py-2 px-4 rounded-md mt-4 border border-red-300 mb-8">
-					Server is not reachable 😭😭😭 Please start the server.
-				</p>
+				<div className="image-bg h-screen w-screen grid place-items-center fixed top-0 left-0 z-20">
+					<p>There is a problem with the server...</p>
+				</div>
 			)}
-		</div>
+		</>
 	);
 };
 

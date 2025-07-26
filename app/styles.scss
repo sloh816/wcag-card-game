@@ -5,15 +5,18 @@
 @import url("https://fonts.googleapis.com/css2?family=Poetsen+One&family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap");
 
 body {
-    background-image: url(/gradient-bg.png);
-    background-attachment: fixed;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
-    font-family: "Work Sans", sans-serif;
-    color: #071342;
+	font-family: "Work Sans", sans-serif;
+	color: #071342;
+}
+
+.image-bg {
+	background-image: url(/gradient-bg.png);
+	background-attachment: fixed;
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: cover;
 }
 
 .font-poetsen {
-    font-family: "Poetsen One", sans-serif;
+	font-family: "Poetsen One", sans-serif;
 }
