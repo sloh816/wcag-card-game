@@ -1,10 +1,10 @@
-import Button from "@/components/Button";
 import api from "@/lib/api";
 import CardBack from "@/assets/card-back.png";
 import DrawPileImg from "@/assets/draw-pile.png";
-
 import PlayerHand from "@/components/PlayerHand";
 import CardImage from "./CardImage";
+import UserCard from "@/components/UserCard";
+import CardModal from "@/components/CardModal";
 
 const Game = ({ room, playerName }) => {
 	console.log(room);
@@ -16,27 +16,6 @@ const Game = ({ room, playerName }) => {
 
 	const resetGame = () => {
 		api.resetGame(room.id);
-	};
-
-	const A11yCard = ({ card, hide = false }) => {
-		return !hide ? (
-			<div className="border border-slate-300 p-4 rounded-lg shadow w-32 h-40">
-				<strong>{card.title}</strong>
-			</div>
-		) : (
-			<div className="border border-slate-300 p-4 rounded-lg shadow w-32 h-40 bg-slate-300"></div>
-		);
-	};
-
-	const UserCard = ({ card }) => {
-		return (
-			<div className="flex justify-center items-center mb-8">
-				<div className="border border-blue-400 p-4 rounded-lg shadow w-40 h-48">
-					<strong>{card.name}</strong>
-					<p className="text-sm mt-2">{card.description}</p>
-				</div>
-			</div>
-		);
 	};
 
 	const GameStatus = ({ message, colour = "orange" }) => {
@@ -145,7 +124,7 @@ const Game = ({ room, playerName }) => {
 				<div className="flex flex-col gap-4 mt-4">
 					<div className="flex gap-4 justify-center mb-8">
 						<DrawPile />
-						<CardImage imgSrc={CardBack.src} />
+						<UserCard card={room.game.userCard} />
 					</div>
 					<div className="opponents">
 						<ul className="flex justify-center flex-wrap gap-4 w-full">
