@@ -2,7 +2,7 @@ import PersonIcon from "@/assets/person-icon.png";
 import CardModal from "@/components/CardModal";
 import { useState } from "react";
 
-const UserCard = ({ card }) => {
+const UserCard = ({ card, a11yCards }) => {
 	const [showCard, setShowCard] = useState(false);
 
 	// if you click outside the cardmodal, close it
@@ -22,8 +22,9 @@ const UserCard = ({ card }) => {
 				titleSize: "text-2xl px-2 py-1",
 				imageSize: "w-[260px] h-[175px] border-2",
 				descriptionSize: "text-xs h-[62px] -mb-6 -mt-6 rounded-md w-[245px] shadow-sm p-2",
-				listSize: "text-sm w-[285px] -ml-[5px] pt-6 p-2 rounded-md min-h-[160px] shadow-md",
-				listItemsSize: "text-xs ml-6"
+				listSize:
+					"text-sm w-[285px] -ml-[5px] pt-6 p-2 rounded-md min-h-[160px] shadow-md ",
+				listItemsSize: "list-disc text-xs ml-6 gap-8 leading-relaxed mt-1"
 			},
 			small: {
 				cardSize: "w-[80px] h-[112px] rounded-sm",
@@ -33,8 +34,8 @@ const UserCard = ({ card }) => {
 				descriptionSize:
 					"text-[3px] h-[20px] -mb-6 -mt-6 rounded-sm w-[65px] shadow-sm p-1",
 				listSize:
-					"w-[75px] p-[2px] rounded-sm h-[40px] shadow-md text-[4px] pt-[10px] leading-none",
-				listItemsSize: "text-[3px] ml-4"
+					"w-[75px] p-[4px] rounded-sm h-[40px] shadow-md text-[4px] pt-[10px] leading-tight",
+				listItemsSize: "text-[3px] ml-[4px] mt-[2px]"
 			}
 		};
 
@@ -64,9 +65,10 @@ const UserCard = ({ card }) => {
 						className={`text-black leading-1 bg-white text-left ${sizes[size].listSize}`}
 					>
 						<p className="font-poetsen">Accessibility practices:</p>
-						<ul className={`list-disc columns-2 ${sizes[size].listItemsSize}`}>
+						<ul className={`columns-2 ${sizes[size].listItemsSize}`}>
 							{card.a11yNumbers.map((number) => {
-								return <li key={number}>{number}</li>;
+								const a11yCard = a11yCards.find((a) => a.number === number);
+								return <li key={number}>{a11yCard ? a11yCard.title : number}</li>;
 							})}
 						</ul>
 					</div>

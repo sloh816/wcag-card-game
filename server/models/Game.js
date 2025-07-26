@@ -15,7 +15,8 @@ class Game {
 			players: this.players.map((player) => player.get()),
 			drawPile: this.drawPile.map((card) => card.get()),
 			userDeck: this.userDeck.map((card) => card.get()),
-			userCard: this.userCard ? this.userCard.get() : null
+			userCard: this.userCard ? this.userCard.get() : null,
+			a11yCards: this.getA11yCards()
 		};
 	}
 

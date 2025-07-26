@@ -4,7 +4,7 @@ import DrawPileImg from "@/assets/draw-pile.png";
 import PlayerHand from "@/components/PlayerHand";
 import CardImage from "./CardImage";
 import UserCard from "@/components/UserCard";
-import CardModal from "@/components/CardModal";
+import Card from "./Card";
 
 const Game = ({ room, playerName }) => {
 	console.log(room);
@@ -26,7 +26,7 @@ const Game = ({ room, playerName }) => {
 		};
 
 		return (
-			<div className={`game-status bg-gradient-to-r ${colours[colour]}`}>
+			<div className={`game-status mt-4 bg-gradient-to-r ${colours[colour]}`}>
 				<p className="font-poetsen text-lg text-center py-1">{message}</p>
 			</div>
 		);
@@ -65,14 +65,22 @@ const Game = ({ room, playerName }) => {
 		const player = room.players.find((p) => p.name === name);
 		const cards = player ? player.hand : [];
 
+		const tempCard = {
+			title: "Plain language",
+			description:
+				"Provide content in a way that is clear, concise, and can be reasonably understood at a grade 7-8 reading level.",
+			wcagSc: "3.1.5",
+			number: 18
+		};
+
 		return (
 			player && (
 				<div className="flex flex-col items-center gap-2">
 					<PlayerName name={name} points={player.points} size="small" />
 					<PlayerHand cards={cards} size="small" />
 					<div className="h-8 flex gap-2 justify-center">
-						<CardImage imgSrc={CardBack.src} height="h-full" />
-						<CardImage imgSrc={CardBack.src} height="h-full" />
+						<Card card={tempCard} size="reallySmall" />
+						<Card card={tempCard} size="reallySmall" />
 					</div>
 				</div>
 			)
@@ -83,11 +91,19 @@ const Game = ({ room, playerName }) => {
 		const player = room.players.find((p) => p.name === playerName);
 		const cards = player ? player.hand : [];
 
+		const tempCard = {
+			title: "Plain language",
+			description:
+				"Provide content in a way that is clear, concise, and can be reasonably understood at a grade 7-8 reading level.",
+			wcagSc: "3.1.5",
+			number: 18
+		};
+
 		return (
 			<div className="you flex flex-col items-center gap-2">
-				<div className="h-16 flex gap-2">
-					<CardImage imgSrc={CardBack.src} height="h-full" />
-					<CardImage imgSrc={CardBack.src} height="h-full" />
+				<div className="h-16 flex gap-2 mb-4">
+					<Card card={tempCard} size="small" />
+					<Card card={tempCard} size="small" />
 				</div>
 				<div className="w-[300px]">
 					<PlayerHand cards={cards} />
@@ -111,7 +127,6 @@ const Game = ({ room, playerName }) => {
 						Draw card
 					</p>
 				</button>
-
 				<CardImage imgSrc={DrawPileImg.src} height="h-[112px]" />
 			</div>
 		);
@@ -124,7 +139,7 @@ const Game = ({ room, playerName }) => {
 				<div className="flex flex-col gap-4 mt-4">
 					<div className="flex gap-4 justify-center mb-8">
 						<DrawPile />
-						<UserCard card={room.game.userCard} />
+						<UserCard card={room.game.userCard} a11yCards={room.game.a11yCards} />
 					</div>
 					<div className="opponents">
 						<ul className="flex justify-center flex-wrap gap-4 w-full">

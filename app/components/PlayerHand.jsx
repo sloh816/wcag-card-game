@@ -41,7 +41,9 @@ const PlayerHand = ({ cards, size = "regular" }) => {
 
 					const calculateOverlapSmall = (totalCards) => {
 						if (totalCards <= 3) return "ml-1";
-						if (totalCards <= 6) return "-ml-4";
+						if (totalCards <= 4) return "-ml-3";
+						if (totalCards <= 5) return "-ml-[16px]";
+						if (totalCards <= 6) return "-ml-[20px]";
 						if (totalCards <= 8) return "-ml-6";
 						return "-ml-[37px]"; // For more than 10 cards
 					};
@@ -68,7 +70,7 @@ const PlayerHand = ({ cards, size = "regular" }) => {
 								style={{ zIndex: index }}
 								onClick={() => setShowCard(card)}
 							>
-								<Card card={card} size="reallySmall" />
+								<Card card={card} size="small" />
 							</button>
 						</li>
 					);

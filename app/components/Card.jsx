@@ -41,13 +41,22 @@ const Card = ({ card, size = "large" }) => {
 			wcagScPadding: "py-1 px-2",
 			wcagScSize: "text-xs"
 		},
-		reallySmall: {
+		small: {
 			cardSize: "w-[56px] h-[78px] rounded-sm",
 			innerCardSize: "w-[52px] h-[74px] rounded-sm",
 			titleSize: "text-[6px] px-[2px] py-[1px]",
 			imageSize: "w-[52px]",
 			descriptionSize:
 				"text-[2px] w-[54px] -ml-[1px] p-[1px] rounded-sm min-h-[16px] shadow-sm",
+			wcagScPadding: "p-[1px]",
+			wcagScSize: "text-[1px]"
+		},
+		reallySmall: {
+			cardSize: "w-[32px] h-[44px]",
+			innerCardSize: "w-[30px] h-[44px]",
+			titleSize: "text-[3px] px-[2px] py-[1px]",
+			imageSize: "w-[30px]",
+			descriptionSize: "text-[1px] w-[31px] -ml-[1px] p-[1px] min-h-[10px] shadow-sm",
 			wcagScPadding: "p-[1px]",
 			wcagScSize: "text-[1px]"
 		}
